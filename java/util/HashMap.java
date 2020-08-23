@@ -277,10 +277,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * TreeNode subclass, and in LinkedHashMap for its Entry subclass.)
      */
     static class Node<K,V> implements Map.Entry<K,V> {
+        //HashMap中的节点
         final int hash;
         final K key;
         V value;
-        Node<K,V> next;
+        Node<K,V> next;//同属于一个哈希值的链表的下一个节点
 
         Node(int hash, K key, V value, Node<K,V> next) {
             this.hash = hash;
@@ -298,6 +299,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         }
 
         public final V setValue(V newValue) {
+            //为节点设置新值后，返回之前的旧值
             V oldValue = value;
             value = newValue;
             return oldValue;
@@ -376,6 +378,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Returns a power of two size for the given target capacity.
      */
     static final int tableSizeFor(int cap) {
+        /**
+         * 返回大于输入参数且最近的2的整数次幂的数（比如：10->16），
+         * 如果容量大于或等于最大容量，则将容量设置为最大容量
+         */
         int n = cap - 1;
         n |= n >>> 1;
         n |= n >>> 2;
@@ -445,16 +451,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *         or the load factor is nonpositive
      */
     public HashMap(int initialCapacity, float loadFactor) {
+        //初始容量 加载因子
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal initial capacity: " +
                                                initialCapacity);
+        //如果初始容量大于最大容量（2^30）则将初始容量置为2^30
         if (initialCapacity > MAXIMUM_CAPACITY)
             initialCapacity = MAXIMUM_CAPACITY;
+        //如果加载因子非正，或者加载因子不是数值（0.0/0.0）则抛异常
         if (loadFactor <= 0 || Float.isNaN(loadFactor))
             throw new IllegalArgumentException("Illegal load factor: " +
                                                loadFactor);
         this.loadFactor = loadFactor;
-        this.threshold = tableSizeFor(initialCapacity);
+        this.threshold = tableSizeFor(initialCapacity);//设置阈值
     }
 
     /**
@@ -485,6 +494,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @param   m the map whose mappings are to be placed in this map
      * @throws  NullPointerException if the specified map is null
      */
+    //这个构造函数满足：向HashMap中放入普通的Map，并将其转化为HashMap的节点
     public HashMap(Map<? extends K, ? extends V> m) {
         this.loadFactor = DEFAULT_LOAD_FACTOR;
         putMapEntries(m, false);
@@ -501,12 +511,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int s = m.size();
         if (s > 0) {
             if (table == null) { // pre-size
+                //如果table原来是null的，则设置初始容量（+1.0F是为了向上取整）
                 float ft = ((float)s / loadFactor) + 1.0F;
                 int t = ((ft < (float)MAXIMUM_CAPACITY) ?
                          (int)ft : MAXIMUM_CAPACITY);
+                //如果初始容量大于阈值，则重新调整阈值
                 if (t > threshold)
                     threshold = tableSizeFor(t);
             }
+            //如果当前put的Map的大小，大于当前阈值，则重新调整阈值
             else if (s > threshold)
                 resize();
             for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
@@ -681,20 +694,39 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int newCap, newThr = 0;
         if (oldCap > 0) {
             if (oldCap >= MAXIMUM_CAPACITY) {
+                //如果旧表的容量已经到最大值了，则将阈值置为整型的最大值，并直接返回旧表
                 threshold = Integer.MAX_VALUE;
                 return oldTab;
             }
+            /**
+             * 将新的容量扩展为之前的2倍，
+             * 如果扩展之后的容量小于最大容量，
+             * 并且旧表的容量比默认的最小初始容量（16）要大，
+             * 则将新的阈值设置为旧阈值的2倍
+             */
             else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
+        //如果旧阈值大于0，并且旧的容量≤0，则直接将新的容量设置为旧的阈值
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
         else {               // zero initial threshold signifies using defaults
+            /**
+             * 如果旧的阈值也≤0，
+             * 则将新的容量初始化为默认初始化容量，
+             * 并将新的阈值设置为默认负载因子和默认初始容量的乘积（向下取整）
+             */
             newCap = DEFAULT_INITIAL_CAPACITY;
             newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
         }
         if (newThr == 0) {
+            /**
+             * 如果新的阈值没有被设置，
+             * 如果新容量小于最大容量，并且新容量和负载因子的乘积小于最大容量
+             * 则将新阈值设置为新容量和负载因子的乘积的向下取整，否则将新阈值
+             * 设置为整型的最大值
+             */
             float ft = (float)newCap * loadFactor;
             newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
                       (int)ft : Integer.MAX_VALUE);
@@ -702,14 +734,24 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         threshold = newThr;
         @SuppressWarnings({"rawtypes","unchecked"})
         Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
-        table = newTab;
-        if (oldTab != null) {
+        table = newTab;//切换到新的表
+        if (oldTab != null) {//如果旧表非空
             for (int j = 0; j < oldCap; ++j) {
+                //遍历旧表
                 Node<K,V> e;
                 if ((e = oldTab[j]) != null) {
+                    //从旧表中取出节点，如果节点非空
+                    //将旧表对应的节点置空
                     oldTab[j] = null;
+                    /**
+                     * 如果当前节点的下一个节点为空，
+                     * 则将当前节点直接进行“重哈希”（将 原来的哈希值 与 容量-1 进行与操作）
+                     */
                     if (e.next == null)
                         newTab[e.hash & (newCap - 1)] = e;
+                    /**
+                     * 如果当前节点的下一个节点非空，并且当前节点是一个红黑树的节点
+                     */
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
@@ -1805,6 +1847,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * linked node.
      */
     static final class TreeNode<K,V> extends LinkedHashMap.Entry<K,V> {
+        //红黑树节点
         TreeNode<K,V> parent;  // red-black tree links
         TreeNode<K,V> left;
         TreeNode<K,V> right;
@@ -1816,9 +1859,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         /**
          * Returns root of tree containing this node.
+         * 返回当前节点的根节点
          */
         final TreeNode<K,V> root() {
             for (TreeNode<K,V> r = this, p;;) {
+                //父节点为空的节点，一定是根节点
                 if ((p = r.parent) == null)
                     return r;
                 r = p;
@@ -1829,20 +1874,47 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Ensures that the given root is the first node of its bin.
          */
         static <K,V> void moveRootToFront(Node<K,V>[] tab, TreeNode<K,V> root) {
+            //总的来说就是将根节点移动到了最靠前的位置
             int n;
             if (root != null && tab != null && (n = tab.length) > 0) {
+                /**
+                 * 如果根节点非空，
+                 * 并且表table非空，
+                 * 并且表的长度大于0（同时将n赋值为表的长度）
+                 */
+                //索引为表长度减一 与根节点的哈希值 进行与操作
                 int index = (n - 1) & root.hash;
+                //从表中取出上述索引对应的节点，这个节点是第一个节点
                 TreeNode<K,V> first = (TreeNode<K,V>)tab[index];
                 if (root != first) {
+                    //如果根节点不是最靠前的节点
                     Node<K,V> rn;
+                    //将最靠前的位置赋值为根节点
                     tab[index] = root;
+                    //获取根节点的前驱节点
                     TreeNode<K,V> rp = root.prev;
+                    /**
+                     * 如果根节点的后继节点非空，
+                     * 则将根节点的后继节点的前驱节点置为根节点的前驱节点
+                     * 就相当于从链中，把根节点去了出来
+                     */
                     if ((rn = root.next) != null)
                         ((TreeNode<K,V>)rn).prev = rp;
+                    /**
+                     * 如果根节点的前驱节点非空，
+                     * 则将前驱节点的后继节点置为根节点的后继节点
+                     */
                     if (rp != null)
                         rp.next = rn;
+                    /**
+                     * 如果原最靠前的节点非空，则将该节点的前驱节点置为根节点
+                     */
                     if (first != null)
                         first.prev = root;
+                    /**
+                     * 根节点额后继节点置为，原最靠前的节点
+                     * 根节点的前驱节点为空
+                     */
                     root.next = first;
                     root.prev = null;
                 }
