@@ -346,11 +346,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * Comparable<C>", else null.
      */
     static Class<?> comparableClassFor(Object x) {
+        //如果类C满足：class C implements Comparable<C>，则返回C的class，否则返回空
         if (x instanceof Comparable) {
             Class<?> c; Type[] ts, as; Type t; ParameterizedType p;
             if ((c = x.getClass()) == String.class) // bypass checks
                 return c;
             if ((ts = c.getGenericInterfaces()) != null) {
+                /**
+                 * 如果当前类实现的接口非空
+                 * 则遍历全部的接口
+                 * 如果某个接口是泛型接口，
+                 * 并且这个泛型是可比较的
+                 */
                 for (int i = 0; i < ts.length; ++i) {
                     if (((t = ts[i]) instanceof ParameterizedType) &&
                         ((p = (ParameterizedType)t).getRawType() ==
@@ -1882,7 +1889,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                  * 并且表table非空，
                  * 并且表的长度大于0（同时将n赋值为表的长度）
                  */
-                //索引为表长度减一 与根节点的哈希值 进行与操作
+                //索引为 表长度减一 与根节点的哈希值 进行与操作
                 int index = (n - 1) & root.hash;
                 //从表中取出上述索引对应的节点，这个节点是第一个节点
                 TreeNode<K,V> first = (TreeNode<K,V>)tab[index];
@@ -1918,6 +1925,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     root.next = first;
                     root.prev = null;
                 }
+                //检查节点的有效性
                 assert checkInvariants(root);
             }
         }
@@ -1928,26 +1936,81 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * comparing keys.
          */
         final TreeNode<K,V> find(int h, Object k, Class<?> kc) {
+            /**
+             * 查找某个节点的思路：
+             * 红黑是也属于二叉搜索树，
+             * 因此，先比较目标节点和当前节点的哈希值，
+             * 如果目标节点的哈希值大于当前节点，则将指针指向当前节点的右子节点
+             * 如果目标节点的哈希值小于当前节点，则将指针指向当前节点的左子节点
+             * 如果目标节点的哈希值等于当前节点，那么会有2种可能
+             * 1.当前节点的key就是目标节点的key（指向同一块儿内存），或者当前节点的key值和目标节点一直，那么溜直接返回当前节点
+             * 2.与1相反，即发生了哈希冲突
+             * 下面来说一下“2”这种情况：
+             *
+             */
             TreeNode<K,V> p = this;
             do {
                 int ph, dir; K pk;
+                //pl为当前节点的左节点，pr为当前节点的右节点
                 TreeNode<K,V> pl = p.left, pr = p.right, q;
+                /**
+                 * 将当前节点的哈希值赋给ph，
+                 * 并判断，如果这个哈希值大于要查找的哈希值，
+                 * 则将指针p指向当前节点的左节点
+                 * （二叉搜索树，目标值比当前值小则将下一个搜索的节点指向当前节点的左节点），
+                 */
                 if ((ph = p.hash) > h)
                     p = pl;
+                /**
+                 * 如果当前节点的哈希值小于目标节点的哈希值
+                 * 则将下一个搜索的节点指向当前节点的右节点
+                 */
                 else if (ph < h)
                     p = pr;
+                /**
+                 * 如果当前节点的哈希值恰好等于目标节点的哈希值
+                 *
+                 * 将当前节点的key值赋值给pk，
+                 * 判断，如果pk和目标节点的key相同（指向同一块儿内存），
+                 * 或者目标节点的key值非空，并且
+                 * 当前节点的key值和目标节点的key值相等，
+                 * 则说明找到了目标节点，直接将其返回
+                 */
                 else if ((pk = p.key) == k || (k != null && k.equals(pk)))
                     return p;
+                /**
+                 * 如果当前节点的哈希值和目标节点的哈希值相同，
+                 * 但是当前节点的key和目标节点的key不是同一个，
+                 * 并且值也不同
+                 */
+
+                /**
+                 * 如果当前节点的左节点非空，就将p指向左节点，
+                 * 如果当前节点的右节点非空，就将p指向右节点
+                 */
                 else if (pl == null)
                     p = pr;
                 else if (pr == null)
                     p = pl;
+                /**
+                 * 如果kc非空，
+                 * 或者 目标对象是个可比较的对象
+                 * 则将目标对象和当前节点进行比较
+                 * 比当前节点大则将p指向当前节点的右节点
+                 * 比当前节点小则将p指向当前节点的左节点
+                 */
                 else if ((kc != null ||
                           (kc = comparableClassFor(k)) != null) &&
                          (dir = compareComparables(kc, k, pk)) != 0)
                     p = (dir < 0) ? pl : pr;
+                /**
+                 * 否则从右节点进行递归查找
+                 */
                 else if ((q = pr.find(h, k, kc)) != null)
                     return q;
+                /**
+                 *如果从右节点递归查找不到，则将指针指向当前节点的左节点
+                 */
                 else
                     p = pl;
             } while (p != null);
