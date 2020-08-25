@@ -2051,20 +2051,42 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Forms tree of the nodes linked from this node.
          */
         final void treeify(Node<K,V>[] tab) {
+            /**
+             * 将与当前节点相连的全部节点，转换成红黑树
+             */
             TreeNode<K,V> root = null;
             for (TreeNode<K,V> x = this, next; x != null; x = next) {
+                //遍历与当前节点相连的全部节点
                 next = (TreeNode<K,V>)x.next;
+                //将当前节点的左指针和右指针置空
                 x.left = x.right = null;
                 if (root == null) {
+                    /**
+                     * 如果当前的根节点为空，
+                     * 则将当前节点设置为根节点，
+                     * 并将当前节点的父节点置空，
+                     * 将当前节点设置为黑节点（红黑树的根节点是黑色的）
+                     */
                     x.parent = null;
                     x.red = false;
                     root = x;
                 }
                 else {
+                    //如果不是根节点
                     K k = x.key;
                     int h = x.hash;
                     Class<?> kc = null;
                     for (TreeNode<K,V> p = root;;) {
+                        /**
+                         * 从根节点开始遍历，找到当前节点的插入位置
+                         * 如果当前节点的哈希值大于目标节点的哈希值，则将方向改为“向左”
+                         * 如果当前节点的哈希值小于目标节点的哈希值，则将方向改为“向右”
+                         * 否则，如果当前节点的哈希值和目标节点的哈希值相同，
+                         * 则判断目标节点的key是不是可比较的，如果是不可比较的，或者是比较结果相等
+                         * 则通过“tieBreakOrder”方法比较当前节点与目标节点，经过这个方法比较后，可以得到唯一的方向（向左或向右）
+                         * 至此，我们可以判断出目标节点的下一个指向了，所以我们把该节点插入到指定的位置，
+                         * 插入时可能会调整红黑树的结构
+                         */
                         int dir, ph;
                         K pk = p.key;
                         if ((ph = p.hash) > h)
@@ -2089,6 +2111,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     }
                 }
             }
+            /**
+             * 左后将变为红黑树的节点的根节点移动到表的最前端
+             */
             moveRootToFront(tab, root);
         }
 
