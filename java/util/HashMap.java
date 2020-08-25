@@ -2122,8 +2122,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * this node.
          */
         final Node<K,V> untreeify(HashMap<K,V> map) {
+            /**
+             * 将当前节点的属性结构从树形节点转为链状节点
+             */
             Node<K,V> hd = null, tl = null;
             for (Node<K,V> q = this; q != null; q = q.next) {
+                /**
+                 * 将当前节点换成普通的Node节点，
+                 * 后面的就是将转换为的节点连接成链表就好了，
+                 * 最后返回头结点
+                 */
                 Node<K,V> p = map.replacementNode(q, null);
                 if (tl == null)
                     hd = p;
