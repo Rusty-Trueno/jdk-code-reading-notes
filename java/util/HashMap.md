@@ -241,7 +241,7 @@ final void treeify(Node<K,V>[] tab) {
                 }
             }
             /**
-             * 左后将变为红黑树的节点的根节点移动到表的最前端
+             * 然后将变为红黑树的节点的根节点移动到表的最前端
              */
             moveRootToFront(tab, root);
         }

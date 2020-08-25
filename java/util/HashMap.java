@@ -2112,7 +2112,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             /**
-             * 左后将变为红黑树的节点的根节点移动到表的最前端
+             * 然后将变为红黑树的节点的根节点移动到表的最前端
              */
             moveRootToFront(tab, root);
         }
