@@ -2147,10 +2147,25 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          */
         final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
                                        int h, K k, V v) {
+            /**
+             * 树形节点版本的put
+             */
             Class<?> kc = null;
             boolean searched = false;
+            //找到当前节点的根节点
             TreeNode<K,V> root = (parent != null) ? root() : this;
             for (TreeNode<K,V> p = root;;) {
+                /**
+                 * 从当前节点的根节点开始遍历
+                 * 如果当前节点的哈希值大于目标节点，则将方向设置为“向左”，
+                 * 如果当前节点的哈希值小于目标节点，则将方向设置为“向右”，
+                 * 如果当前节点的哈希值与目标节点的哈希值相等，并且没有发生哈希冲突，则找到了该节点，返回它
+                 * 否则，如果检测到哈希冲突，则判断当前节点的key是否可以进行比较，
+                 * 如果不可以进行比较，或者比较的结果为相等，
+                 * 如果当前节点没有被遍历过，
+                 * 则递归的查找当前节点，并将当前节点标记为“已经遍历过了”
+                 * 找到了则返回，没找到，则继续调整下一步的查找方向
+                 */
                 int dir, ph; K pk;
                 if ((ph = p.hash) > h)
                     dir = -1;
@@ -2173,9 +2188,17 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                     dir = tieBreakOrder(k, pk);
                 }
 
+                /**
+                 *如果下一个要找的方向，对应的节点为空，
+                 * 则说明想要插入的值对应的key，之前并不存在于HashMap里面，
+                 * 因此，我们把这个想要插入的值进行创建，并将其连接到树型结构上
+                 * 先按照二叉搜索树的方式插入，再进行红黑树的结构调整，然后返回空
+                 */
+
                 TreeNode<K,V> xp = p;
                 if ((p = (dir <= 0) ? p.left : p.right) == null) {
                     Node<K,V> xpn = xp.next;
+                    //新创建一个TreeNode
                     TreeNode<K,V> x = map.newTreeNode(h, k, v, xpn);
                     if (dir <= 0)
                         xp.left = x;
