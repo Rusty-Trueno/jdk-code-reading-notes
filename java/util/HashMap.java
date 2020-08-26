@@ -2476,6 +2476,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                               TreeNode<K,V> p) {
             TreeNode<K,V> r, pp, rl;
             if (p != null && (r = p.right) != null) {
+                /**
+                 * 如果p节点的右子节点非空，则将r指向p节点的右子节点
+                 *
+                 * 1.如果r节点的左子节点非空，则将p的右指针指向r的左子节点，并将r1指针也指向r的左子节点；
+                 *
+                 * 2.将r的父节点指针指向p的父节点，并将指针pp也指向p的父节点，并继续判断，
+                 * 如果这个p的父节点本身就是空，则直接将根指针至相关r，并将其设置为黑色节点（红黑树的根节点是黑色的）
+                 *
+                 * 3.如果p节点的父节点非空，继续判断，如果pp的左子节点为p，则将该左指针指向r，
+                 * 如果pp的右子节点为p，则将该右指针指向r
+                 *
+                 * 4.最后，将r的左指针指向p，将p的父指针指向r
+                 */
                 if ((rl = p.right = r.left) != null)
                     rl.parent = p;
                 if ((pp = r.parent = p.parent) == null)
