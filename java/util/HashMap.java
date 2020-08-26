@@ -2507,6 +2507,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                                TreeNode<K,V> p) {
             TreeNode<K,V> l, pp, lr;
             if (p != null && (l = p.left) != null) {
+                /**
+                 * 道理和左旋转类似
+                 */
                 if ((lr = p.left = l.right) != null)
                     lr.parent = p;
                 if ((pp = l.parent = p.parent) == null)
