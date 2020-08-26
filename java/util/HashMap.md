@@ -467,7 +467,11 @@ static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
             return root;
         }
 ```
+红黑树左旋转
 ![红黑树左旋转](红黑树左旋转.jpg)
+红黑树右旋转（代码略）
+![红黑树右旋转](红黑树右旋转.jpg)
+
 > balanceInsertion() 树节点的平衡插入
 
 > balanceDeletion() 树节点的平衡删除
