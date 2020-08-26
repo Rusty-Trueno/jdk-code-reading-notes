@@ -343,9 +343,97 @@ final TreeNode<K,V> putTreeVal(HashMap<K,V> map, Node<K,V>[] tab,
         }
 ```
 > removeTreeNode() 移除树节点
+```
+
+```
 
 > split() 节点拆分
+```
+final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
+            /**
+             * 节点拆分
+             */
+            TreeNode<K,V> b = this;
+            // Relink into lo and hi lists, preserving order
+            TreeNode<K,V> loHead = null, loTail = null;
+            TreeNode<K,V> hiHead = null, hiTail = null;
+            int lc = 0, hc = 0;
+            for (TreeNode<K,V> e = b, next; e != null; e = next) {
+                /**
+                 * 遍历树节点，
+                 * 获取当前节点的下一个节点，并将当前节点与下一个节点断连，
+                 *
+                 */
+                next = (TreeNode<K,V>)e.next;
+                e.next = null;
+                /**
+                 * 1.等于0时，则将该树链表头结点放到新数组中，位于之前旧数组中的索引位置，即位置和原来一致
+                 * 2.等于1是，说明当前节点在新数组中的位置发生了变化，新的位置为原旧数组中的索引位置+旧数组的长度。
+                 */
+                if ((e.hash & bit) == 0) {
+                    /**
+                     * 整体思路就是，
+                     * 将位置在新数组中下标不变的节点，
+                     * 连成一个链表，并记录当前链表的长度，链表的头结点是loHead，尾节点是loTail
+                     */
+                    //将loTail指向当前节点的前驱节点，如果当前节点的前驱为空，则将loHead指向当前节点
+                    if ((e.prev = loTail) == null)
+                        loHead = e;
+                    //如果当前节点的前驱非空，则将loTail的后继节点指向当前节点
+                    else
+                        loTail.next = e;
+                    loTail = e;
+                    ++lc;
+                }
+                else {
+                    /**
+                     * 和上面的类似，
+                     * 只不过这个分支是为那些在新数组中下标发生了改变的节点，重新构建成一个链表，
+                     * 该链表的头结点是hiHead，尾节点是hiTail，并记录当前节点的长度
+                     */
+                    if ((e.prev = hiTail) == null)
+                        hiHead = e;
+                    else
+                        hiTail.next = e;
+                    hiTail = e;
+                    ++hc;
+                }
+            }
 
+            if (loHead != null) {
+                /**
+                 * 如果存在那些，在新数组中下标没有发生变化的节点，即还在原来的位置
+                 * 如果这些节点的总长度≤6，则将这些树形节点，转换为普通节点，
+                 * 否则的话，则直接将这些节点的头结点放到新数组执行下标的位置，
+                 * 并且，如果hiHead为空，则说明， 还有在新数组中下标发生变化的节点没有处理完，因此，当前节点还不能树化
+                 * 如果非空， 则可以将当前节点进行树化
+                 */
+                if (lc <= UNTREEIFY_THRESHOLD)
+                    tab[index] = loHead.untreeify(map);
+                else {
+                    tab[index] = loHead;
+                    if (hiHead != null) // (else is already treeified)
+                        loHead.treeify(tab);
+                }
+            }
+            if (hiHead != null) {
+                /**
+                 * 如果存在那些在新数组中下标发生改变的节点，即新下标的位置为（原来位置 + 原来数组长度）
+                 * 判断，如果这种节点的数目≤6，则将这些节点去树化，并将头结点放到新数组中对应的索引位置
+                 * 反之，如果这种节点的数目比6大，则将头结点放到新数组中对应的索引位置，
+                 * 并判断那些在新数组中位置没发生变化的节点是否存在，如果不存在，则说明这些节点都已经被处理过了
+                 * 因此，可以直接将当前类型的节点树化
+                 */
+                if (hc <= UNTREEIFY_THRESHOLD)
+                    tab[index + bit] = hiHead.untreeify(map);
+                else {
+                    tab[index + bit] = hiHead;
+                    if (loHead != null)
+                        hiHead.treeify(tab);
+                }
+            }
+        }
+```
 > rotateLeft() , rotateRight() 树旋转
 
 > balanceInsertion() 树节点的平衡插入

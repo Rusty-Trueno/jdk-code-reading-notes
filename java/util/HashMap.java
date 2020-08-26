@@ -2226,22 +2226,53 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          */
         final void removeTreeNode(HashMap<K,V> map, Node<K,V>[] tab,
                                   boolean movable) {
+            /**
+             * 移除树节点
+             *
+             */
             int n;
             if (tab == null || (n = tab.length) == 0)
                 return;
+            //获取最靠前的节点所在的索引值
             int index = (n - 1) & hash;
+            //取出最靠前的节点
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
+            //分别用2个指针指向当前节点的下一个节点，以及当前节点的前一个节点
             TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
+            /**
+             * 如果当前节点的前驱为空，则说明当前节点是最靠前的节点，
+             * 要将当前节点移除，直接把表中最靠前的节点指向当前节点原来的后继节点即可
+             */
             if (pred == null)
                 tab[index] = first = succ;
+            /**
+             * 如果当前节点非空，
+             * 则将当前节点的前驱的后继指针，指向当前节点的后继节点
+             */
             else
                 pred.next = succ;
+            /**
+             * 如果当前节点的后继节点非空，
+             * 则将后继节点的前驱指针指向当前节点的前驱节点
+             */
             if (succ != null)
                 succ.prev = pred;
+            /**
+             * 如果首节点为空，则直接返回
+             */
             if (first == null)
                 return;
+            /**
+             * 当节点数量小于7时，转换成链栈的形式存储
+             */
             if (root.parent != null)
                 root = root.root();
+            /**
+             * 以下三个条件任一满足时，当满足红黑树条件时，说明该位置元素的长度少于6
+             * 因此，需要对该元素位置链表化
+             * 1. root == null ：根节点为空，树节点数量为0
+             * 2. root
+             */
             if (root == null
                 || (movable
                     && (root.right == null
@@ -2250,8 +2281,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 tab[index] = first.untreeify(map);  // too small
                 return;
             }
+            /**
+             * 判断树形结构
+             */
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
             if (pl != null && pr != null) {
+                /**
+                 * 如果当前节点的左节点和右节点都是非空的
+                 * 从当前节点的右节点一直往左走，直到走到头
+                 *
+                 */
                 TreeNode<K,V> s = pr, sl;
                 while ((sl = s.left) != null) // find successor
                     s = sl;
@@ -2259,10 +2298,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 TreeNode<K,V> sr = s.right;
                 TreeNode<K,V> pp = p.parent;
                 if (s == pr) { // p was s's direct parent
+                    /**
+                     * 如果当前节点的右节点没有左节点了，因此p节点是s节点的直接父节点
+                     * 则将p节点的父节点置为s，s节点的右节点置为p
+                     * 相当于将p节点和s节点进行交换
+                     */
                     p.parent = s;
                     s.right = p;
                 }
                 else {
+                    /**
+                     * 如果p不是s节点的直接父节点
+                     * 如果s为s父节点的左子节点，则用当前节点把s替换掉，即把sp的左节点设置为当前节点
+                     * 如果s为s父节点的右子节点，则用当前节点吧s替换掉，即把sp的右节点设置为当前节点
+                     */
                     TreeNode<K,V> sp = s.parent;
                     if ((p.parent = sp) != null) {
                         if (s == sp.left)
@@ -2270,6 +2319,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         else
                             sp.right = p;
                     }
+                    /**
+                     * ？？？
+                     */
                     if ((s.right = pr) != null)
                         pr.parent = s;
                 }
@@ -2330,26 +2382,50 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * @param map the map
          * @param tab the table for recording bin heads
          * @param index the index of the table being split
-         * @param bit the bit of hash to split on
+         * @param bit the bit of hash to split on（旧数组的长度）
          */
         final void split(HashMap<K,V> map, Node<K,V>[] tab, int index, int bit) {
+            /**
+             * 节点拆分
+             */
             TreeNode<K,V> b = this;
             // Relink into lo and hi lists, preserving order
             TreeNode<K,V> loHead = null, loTail = null;
             TreeNode<K,V> hiHead = null, hiTail = null;
             int lc = 0, hc = 0;
             for (TreeNode<K,V> e = b, next; e != null; e = next) {
+                /**
+                 * 遍历树节点，
+                 * 获取当前节点的下一个节点，并将当前节点与下一个节点断连，
+                 *
+                 */
                 next = (TreeNode<K,V>)e.next;
                 e.next = null;
+                /**
+                 * 1.等于0时，则将该树链表头结点放到新数组中，位于之前旧数组中的索引位置，即位置和原来一致
+                 * 2.等于1是，说明当前节点在新数组中的位置发生了变化，新的位置为原旧数组中的索引位置+旧数组的长度。
+                 */
                 if ((e.hash & bit) == 0) {
+                    /**
+                     * 整体思路就是，
+                     * 将位置在新数组中下标不变的节点，
+                     * 连成一个链表，并记录当前链表的长度，链表的头结点是loHead，尾节点是loTail
+                     */
+                    //将loTail指向当前节点的前驱节点，如果当前节点的前驱为空，则将loHead指向当前节点
                     if ((e.prev = loTail) == null)
                         loHead = e;
+                    //如果当前节点的前驱非空，则将loTail的后继节点指向当前节点
                     else
                         loTail.next = e;
                     loTail = e;
                     ++lc;
                 }
                 else {
+                    /**
+                     * 和上面的类似，
+                     * 只不过这个分支是为那些在新数组中下标发生了改变的节点，重新构建成一个链表，
+                     * 该链表的头结点是hiHead，尾节点是hiTail，并记录当前节点的长度
+                     */
                     if ((e.prev = hiTail) == null)
                         hiHead = e;
                     else
@@ -2360,6 +2436,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
 
             if (loHead != null) {
+                /**
+                 * 如果存在那些，在新数组中下标没有发生变化的节点，即还在原来的位置
+                 * 如果这些节点的总长度≤6，则将这些树形节点，转换为普通节点，
+                 * 否则的话，则直接将这些节点的头结点放到新数组执行下标的位置，
+                 * 并且，如果hiHead为空，则说明， 还有在新数组中下标发生变化的节点没有处理完，因此，当前节点还不能树化
+                 * 如果非空， 则可以将当前节点进行树化
+                 */
                 if (lc <= UNTREEIFY_THRESHOLD)
                     tab[index] = loHead.untreeify(map);
                 else {
@@ -2369,6 +2452,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             if (hiHead != null) {
+                /**
+                 * 如果存在那些在新数组中下标发生改变的节点，即新下标的位置为（原来位置 + 原来数组长度）
+                 * 判断，如果这种节点的数目≤6，则将这些节点去树化，并将头结点放到新数组中对应的索引位置
+                 * 反之，如果这种节点的数目比6大，则将头结点放到新数组中对应的索引位置，
+                 * 并判断那些在新数组中位置没发生变化的节点是否存在，如果不存在，则说明这些节点都已经被处理过了
+                 * 因此，可以直接将当前类型的节点树化
+                 */
                 if (hc <= UNTREEIFY_THRESHOLD)
                     tab[index + bit] = hiHead.untreeify(map);
                 else {
