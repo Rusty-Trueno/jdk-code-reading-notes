@@ -2526,6 +2526,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         static <K,V> TreeNode<K,V> balanceInsertion(TreeNode<K,V> root,
                                                     TreeNode<K,V> x) {
+            /**
+             * 红黑树平衡插入节点
+             * 1.首先将要插入节点的颜色置为红色
+             * 2.开始平衡插入节点
+             * 3.将xp指针指向被插入节点x的父节点，并判断该父节点是否为空，如果为空，则说明x节点为根节点，因此将其颜色置为黑色，并直接将其返回
+             */
             x.red = true;
             for (TreeNode<K,V> xp, xpp, xppl, xppr;;) {
                 if ((xp = x.parent) == null) {
@@ -2581,6 +2587,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
         static <K,V> TreeNode<K,V> balanceDeletion(TreeNode<K,V> root,
                                                    TreeNode<K,V> x) {
+            /**
+             * 平衡删除红黑树节点
+             */
             for (TreeNode<K,V> xp, xpl, xpr;;) {
                 if (x == null || x == root)
                     return root;
@@ -2675,6 +2684,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
          * Recursive invariant check
          */
         static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
+            /**
+             * 节点的合理性检查
+             * 1.如果当前节点的前驱节点非空，但是前驱节点的后继节点不是当前节点，则异常
+             * 2.如果当前节点的后继节点非空，但是后继节点的前驱不是当前节点，则异常
+             * 3.如果当前节点的父节点非空，但是当前节点既不是父节点的左子节点，也不是父节点的右子节点，则异常
+             * 4.如果当前节点的左子节点非空，但是左子节点的父节点不是当前节点，或者左子节点的哈希值反倒大于当前节点的哈希值，则异常
+             * 5.如果当前节点的右子节点非空，但是右子节点的父节点不是当前节点，或者右子节点的哈希值反倒小于当前节点的哈希值，则异常
+             * 6.如果当前节点为红色，但是当前节点的左子节点和右子节点也都是红色（红黑树规定红节点的两个子节点都必须是黑的），则异常
+             * 7.递归检查当前节点的左子节点
+             * 8.递归检查当前节点的右子节点
+             * 9.如果没查出异常，则返回真
+             */
             TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
                 tb = t.prev, tn = (TreeNode<K,V>)t.next;
             if (tb != null && tb.next != t)

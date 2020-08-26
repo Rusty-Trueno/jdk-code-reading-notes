@@ -477,3 +477,38 @@ static <K,V> TreeNode<K,V> rotateLeft(TreeNode<K,V> root,
 > balanceDeletion() 树节点的平衡删除
 
 > checkInvariants() 节点的合理性检查
+```
+static <K,V> boolean checkInvariants(TreeNode<K,V> t) {
+            /**
+             * 节点的合理性检查
+             * 1.如果当前节点的前驱节点非空，但是前驱节点的后继节点不是当前节点，则异常
+             * 2.如果当前节点的后继节点非空，但是后继节点的前驱不是当前节点，则异常
+             * 3.如果当前节点的父节点非空，但是当前节点既不是父节点的左子节点，也不是父节点的右子节点，则异常
+             * 4.如果当前节点的左子节点非空，但是左子节点的父节点不是当前节点，或者左子节点的哈希值反倒大于当前节点的哈希值，则异常
+             * 5.如果当前节点的右子节点非空，但是右子节点的父节点不是当前节点，或者右子节点的哈希值反倒小于当前节点的哈希值，则异常
+             * 6.如果当前节点为红色，但是当前节点的左子节点和右子节点也都是红色（红黑树规定红节点的两个子节点都必须是黑的），则异常
+             * 7.递归检查当前节点的左子节点
+             * 8.递归检查当前节点的右子节点
+             * 9.如果没查出异常，则返回真
+             */
+            TreeNode<K,V> tp = t.parent, tl = t.left, tr = t.right,
+                tb = t.prev, tn = (TreeNode<K,V>)t.next;
+            if (tb != null && tb.next != t)
+                return false;
+            if (tn != null && tn.prev != t)
+                return false;
+            if (tp != null && t != tp.left && t != tp.right)
+                return false;
+            if (tl != null && (tl.parent != t || tl.hash > t.hash))
+                return false;
+            if (tr != null && (tr.parent != t || tr.hash < t.hash))
+                return false;
+            if (t.red && tl != null && tl.red && tr != null && tr.red)
+                return false;
+            if (tl != null && !checkInvariants(tl))
+                return false;
+            if (tr != null && !checkInvariants(tr))
+                return false;
+            return true;
+        }
+```
