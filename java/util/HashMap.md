@@ -10,6 +10,49 @@ tab = [(n-1) & hash] 算出节点所在的数组下标的，
 1个或多个0位，这些位置为1的数组下标均不可以放置
 节点，因此，有效位置减少，产生哈希冲突的概率会增加
 
+2. HashMap扩容（resize()）
+>jdk7中的扩容：
+```
+void resize(int newCapacity) {
+        Entry[] oldTable = table;
+        int oldCapacity = oldTable.length;
+        if (oldCapacity == MAXIMUM_CAPACITY) {
+            //如果旧容量已经是最大容量了，则将当前阈值设置为整型的最大值，并返回
+            threshold = Integer.MAX_VALUE;
+            return;
+        }
+
+        //创建新的entry数组
+        Entry[] newTable = new Entry[newCapacity];
+        //迁移元素到新的table（newTable）
+        transfer(newTable, initHashSeedAsNeeded(newCapacity));
+        table = newTable;
+        threshold = (int) Math.min(newCapacity * loadFactor, MAXIMUM_CAPACITY + 1);
+    }
+    
+void transfer(Entry[] newTable, boolean rehash) {
+        int newCapacity = newTable.length;
+        for (Entry<K, V> e : table) {//遍历原表中的全部节点
+            while (null != e) {          //遍历某个节点链上的全部节点
+                Entry<K, V> next = e.next;
+                if (rehash) {//如果节点需要重新哈希，则重新哈希
+                    e.hash = null == e.key ? 0 : hash(e.key);
+                }
+                //获取当前节点在新数组中的下标
+                int i = indexFor(e.hash, newCapacity);
+                //newTable[i]表示bucket[i]的第一个Entry
+                //重新插入在数组该位置的节点（头插法），会导致之前在同位置的节点翻转
+                e.next = newTable[i];
+                newTable[i] = e;
+                //这一步是配合while(null != e) 向后遍历原table的bucket。
+                e = next;
+            }
+        }
+    }
+```
+>jdk8中的扩容：
+```
+```
 
 ## TreeNode
 

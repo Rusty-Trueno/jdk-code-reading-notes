@@ -767,7 +767,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         newTab[e.hash & (newCap - 1)] = e;
                     /**
                      * 如果当前节点的下一个节点非空，并且当前节点是一个红黑树的节点
-                     *
+                     * 进行树形节点的拆分，将红黑树拆分成，在新数组中下标发生变化的节点，以及在新数组中下标不会发生变化的节点
+                     * j是当前节点在旧数组中所在的位置，oldCap是旧数组的容量
                      */
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
@@ -2412,6 +2413,8 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 next = (TreeNode<K,V>)e.next;
                 e.next = null;
                 /**
+                 * HashMap扩容会将容量扩充为原来的2倍（满足条件时），
+                 * 因此，原来节点在新数组中的索引位置只有2中可能：
                  * 1.等于0时，则将该树链表头结点放到新数组中，位于之前旧数组中的索引位置，即位置和原来一致
                  * 2.等于1是，说明当前节点在新数组中的位置发生了变化，新的位置为原旧数组中的索引位置+旧数组的长度。
                  */
