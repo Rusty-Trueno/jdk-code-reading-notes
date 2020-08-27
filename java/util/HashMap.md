@@ -50,8 +50,9 @@ void transfer(Entry[] newTable, boolean rehash) {
         }
     }
 ```
+![jdk7中的扩容](jdk7中的扩容机制.png)
 >jdk8中的扩容：
-```
+```********
 ```
 
 ## TreeNode
