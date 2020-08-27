@@ -337,6 +337,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * never be used in index calculations because of table bounds.
      */
     static final int hash(Object key) {
+        /**
+         * 哈希函数
+         * 如果当前的key为空，则哈希值为0
+         * 如果当前的key非空，则哈希值为key的hashCode与hashCode无符号右移16位后的结果异或
+         */
         int h;
         return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
     }
@@ -377,6 +382,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     @SuppressWarnings({"rawtypes","unchecked"}) // for cast to Comparable
     static int compareComparables(Class<?> kc, Object k, Object x) {
+        /**
+         * 比较两个对象
+         */
         return (x == null || x.getClass() != kc ? 0 :
                 ((Comparable)k).compareTo(x));
     }
@@ -715,12 +723,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                      oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
-        //如果旧阈值大于0，并且旧的容量≤0，则直接将新的容量设置为旧的阈值
+        //如果旧阈值大于0，并且旧的容为0，则直接将新的容量设置为旧的阈值
         else if (oldThr > 0) // initial capacity was placed in threshold
             newCap = oldThr;
         else {               // zero initial threshold signifies using defaults
             /**
-             * 如果旧的阈值也≤0，
+             * 如果旧的阈值为0，
              * 则将新的容量初始化为默认初始化容量，
              * 并将新的阈值设置为默认负载因子和默认初始容量的乘积（向下取整）
              */
@@ -738,6 +746,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
                       (int)ft : Integer.MAX_VALUE);
         }
+        //将当前阈值设置为新阈值
         threshold = newThr;
         @SuppressWarnings({"rawtypes","unchecked"})
         Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
@@ -758,6 +767,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         newTab[e.hash & (newCap - 1)] = e;
                     /**
                      * 如果当前节点的下一个节点非空，并且当前节点是一个红黑树的节点
+                     *
                      */
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
