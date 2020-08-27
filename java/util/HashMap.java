@@ -523,8 +523,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * true (relayed to method afterNodeInsertion).
      */
     final void putMapEntries(Map<? extends K, ? extends V> m, boolean evict) {
+        /**
+         * 将map放入到HashMap中，
+         * 如果evict为假，则说明还只能在初始化这个map，
+         * 否则，则不是初始化这个map
+         */
         int s = m.size();
         if (s > 0) {
+            /**
+             * 如果map长度大于0
+             */
             if (table == null) { // pre-size
                 //如果table原来是null的，则设置初始容量（+1.0F是为了向上取整）
                 float ft = ((float)s / loadFactor) + 1.0F;
@@ -534,9 +542,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if (t > threshold)
                     threshold = tableSizeFor(t);
             }
-            //如果当前put的Map的大小，大于当前阈值，则重新调整阈值
+            /**
+             * 如果当前put的Map的大小，大于当前阈值，
+             * 则需要对HashMap进行扩容
+             */
             else if (s > threshold)
                 resize();
+            /**
+             * 遍历传入的Map
+             * 将每一个Entry放到HashMap中（调用putVal方法）
+             */
             for (Map.Entry<? extends K, ? extends V> e : m.entrySet()) {
                 K key = e.getKey();
                 V value = e.getValue();
@@ -652,18 +667,52 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
                    boolean evict) {
+        /**
+         * 将一个key-value对放到HashMap中
+         */
         Node<K,V>[] tab; Node<K,V> p; int n, i;
+        /**
+         * 如果哈希数组为空或者哈希数组的长度为0，
+         * 则需要对哈希数组进行扩容，
+         * 并将扩容后的长度赋值给n
+         */
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
+        /**
+         * 根据当前元素的哈希值，获取当前元素在哈希数组中的索引位置，
+         * 并将该位置对应的节点赋值给p，如果该位置为空则将新的节点放到该位置
+         */
         if ((p = tab[i = (n - 1) & hash]) == null)
             tab[i] = newNode(hash, key, value, null);
+        /**
+         * 如果该位置的节点非空，
+         */
         else {
             Node<K,V> e; K k;
+            /**
+             * 如果当前哈希数组索引位置的节点（p）的哈希值等于要插入节点的哈希值，
+             * 并且p的key和要插入的key指向同一块儿内存，
+             * 或者要插入节点的key与p的key值相等，则将e指向p
+             */
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 e = p;
+            /**
+             * 如果p（哈希数组当前位置上的节点）是红黑树节点，
+             * 则调用红黑树的插入方法，将key-value对插入
+             */
             else if (p instanceof TreeNode)
                 e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            /**
+             * 否则，如果当前节点是普通的链表节点，
+             * 则从该节点向下遍历，并记录节点累计的个数，
+             * 如果当前节点的后继为空，则说明已经遍历到哈希数组此位置的最后一个节点，
+             * 则将当前节点的下一个节点指向基于要插入的key-value对创建的新节点，
+             * 继续判断，如果当前节点的总数目已经≥8，则说明，此位置的链表应该树形化，
+             * 因此调用树形化方法将节点树形化，然后跳出循环，
+             *
+             * 如果找到和要插入的节点哈希值和key都相同的节点，则退出循环，并将该节点返回
+             */
             else {
                 for (int binCount = 0; ; ++binCount) {
                     if ((e = p.next) == null) {
@@ -679,6 +728,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             if (e != null) { // existing mapping for key
+                /**
+                 * 如果成功将key对应的节点插入，或者找到了本来就有的key节点，
+                 * 修改节点的值为新值，并返回旧值
+                 */
                 V oldValue = e.value;
                 if (!onlyIfAbsent || oldValue == null)
                     e.value = value;
@@ -687,6 +740,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
         ++modCount;
+        //如果插入节点后，HashMap的大小已经大于阈值了，则需要将其扩容
         if (++size > threshold)
             resize();
         afterNodeInsertion(evict);
@@ -826,9 +880,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * table is too small, in which case resizes instead.
      */
     final void treeifyBin(Node<K,V>[] tab, int hash) {
+        /**
+         * 用于把链表结构转化为树结构
+         */
         int n, index; Node<K,V> e;
+        /**
+         * 如果数组为空，或者当前数组的长度小于最小的树化容量，则对HashMap进行扩容
+         */
         if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY)
             resize();
+        /**
+         * 否则的话，将当前的哈希值对应的数组下标赋值为index，
+         * 并将该位置的节点赋值为e，如果e非空，则
+         * 循环遍历以e为头结点的链表，并将每个节点都替换为相应的树形节点
+         * 并将树形结构的头结点找出来，以及将转换好的树形节点连接成一条链
+         * 将数组的index位置设置为找到的头结点，并且，如果头节点非空，
+         * 则将头节点以及其下的所有节点调整为树形结构
+         */
         else if ((e = tab[index = (n - 1) & hash]) != null) {
             TreeNode<K,V> hd = null, tl = null;
             do {
