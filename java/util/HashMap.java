@@ -767,12 +767,19 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                         newTab[e.hash & (newCap - 1)] = e;
                     /**
                      * 如果当前节点的下一个节点非空，并且当前节点是一个红黑树的节点
-                     * 进行树形节点的拆分，将红黑树拆分成，在新数组中下标发生变化的节点，以及在新数组中下标不会发生变化的节点
+                     * 进行树形节点的拆分，将红黑树拆分成，在新数组中下标发生变化的节点，以及在新数组中下标不会发生变化的节点，
+                     * 并将这些节点重新分配到新数组的指定位置，
                      * j是当前节点在旧数组中所在的位置，oldCap是旧数组的容量
                      */
                     else if (e instanceof TreeNode)
                         ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
                     else { // preserve order
+                        /**
+                         * 如果当前节点是普通节点（即链表）
+                         * 遍历当前节点后面的全部节点（一个链表上的）
+                         * 如果当前节点在新数组中的位置不变，则将当前节点连接到loHead上，
+                         * 如果当前节点在新数组中的位置改变，则将当前节点连接到hiHead上
+                         */
                         Node<K,V> loHead = null, loTail = null;
                         Node<K,V> hiHead = null, hiTail = null;
                         Node<K,V> next;
@@ -793,6 +800,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                 hiTail = e;
                             }
                         } while ((e = next) != null);
+                        /**
+                         * 如果在新数组中位置和之前一样的节点存在，则将这些节点的头节点放到新数组对应位置中，
+                         * 同样，如果在新数组中位置发生改变的节点存在，则将这些节点的头节点放到新数组的对应位置中。
+                         * 可将，jdk8在扩容时，不会发生链表的翻转
+                         */
                         if (loTail != null) {
                             loTail.next = null;
                             newTab[j] = loHead;
@@ -805,6 +817,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 }
             }
         }
+        //返回新数组
         return newTab;
     }
 

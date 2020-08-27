@@ -52,7 +52,125 @@ void transfer(Entry[] newTable, boolean rehash) {
 ```
 ![jdk7中的扩容](jdk7中的扩容机制.png)
 >jdk8中的扩容：
-```********
+```
+final Node<K,V>[] resize() {
+        Node<K,V>[] oldTab = table;
+        int oldCap = (oldTab == null) ? 0 : oldTab.length;
+        int oldThr = threshold;
+        int newCap, newThr = 0;
+        if (oldCap > 0) {
+            if (oldCap >= MAXIMUM_CAPACITY) {
+                //如果旧表的容量已经到最大值了，则将阈值置为整型的最大值，并直接返回旧表
+                threshold = Integer.MAX_VALUE;
+                return oldTab;
+            }
+            /**
+             * 将新的容量扩展为之前的2倍，
+             * 如果扩展之后的容量小于最大容量，
+             * 并且旧表的容量比默认的最小初始容量（16）要大，
+             * 则将新的阈值设置为旧阈值的2倍
+             */
+            else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
+                     oldCap >= DEFAULT_INITIAL_CAPACITY)
+                newThr = oldThr << 1; // double threshold
+        }
+        //如果旧阈值大于0，并且旧的容为0，则直接将新的容量设置为旧的阈值
+        else if (oldThr > 0) // initial capacity was placed in threshold
+            newCap = oldThr;
+        else {               // zero initial threshold signifies using defaults
+            /**
+             * 如果旧的阈值为0，
+             * 则将新的容量初始化为默认初始化容量，
+             * 并将新的阈值设置为默认负载因子和默认初始容量的乘积（向下取整）
+             */
+            newCap = DEFAULT_INITIAL_CAPACITY;
+            newThr = (int)(DEFAULT_LOAD_FACTOR * DEFAULT_INITIAL_CAPACITY);
+        }
+        if (newThr == 0) {
+            /**
+             * 如果新的阈值没有被设置，
+             * 如果新容量小于最大容量，并且新容量和负载因子的乘积小于最大容量
+             * 则将新阈值设置为新容量和负载因子的乘积的向下取整，否则将新阈值
+             * 设置为整型的最大值
+             */
+            float ft = (float)newCap * loadFactor;
+            newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
+                      (int)ft : Integer.MAX_VALUE);
+        }
+        //将当前阈值设置为新阈值
+        threshold = newThr;
+        @SuppressWarnings({"rawtypes","unchecked"})
+        Node<K,V>[] newTab = (Node<K,V>[])new Node[newCap];
+        table = newTab;//切换到新的表
+        if (oldTab != null) {//如果旧表非空
+            for (int j = 0; j < oldCap; ++j) {
+                //遍历旧表
+                Node<K,V> e;
+                if ((e = oldTab[j]) != null) {
+                    //从旧表中取出节点，如果节点非空
+                    //将旧表对应的节点置空
+                    oldTab[j] = null;
+                    /**
+                     * 如果当前节点的下一个节点为空，
+                     * 则将当前节点直接进行“重哈希”（将 原来的哈希值 与 容量-1 进行与操作）
+                     */
+                    if (e.next == null)
+                        newTab[e.hash & (newCap - 1)] = e;
+                    /**
+                     * 如果当前节点的下一个节点非空，并且当前节点是一个红黑树的节点
+                     * 进行树形节点的拆分，将红黑树拆分成，在新数组中下标发生变化的节点，以及在新数组中下标不会发生变化的节点，
+                     * 并将这些节点重新分配到新数组的指定位置，
+                     * j是当前节点在旧数组中所在的位置，oldCap是旧数组的容量
+                     */
+                    else if (e instanceof TreeNode)
+                        ((TreeNode<K,V>)e).split(this, newTab, j, oldCap);
+                    else { // preserve order
+                        /**
+                         * 如果当前节点是普通节点（即链表）
+                         * 遍历当前节点后面的全部节点（一个链表上的）
+                         * 如果当前节点在新数组中的位置不变，则将当前节点连接到loHead上，
+                         * 如果当前节点在新数组中的位置改变，则将当前节点连接到hiHead上
+                         */
+                        Node<K,V> loHead = null, loTail = null;
+                        Node<K,V> hiHead = null, hiTail = null;
+                        Node<K,V> next;
+                        do {
+                            next = e.next;
+                            if ((e.hash & oldCap) == 0) {
+                                if (loTail == null)
+                                    loHead = e;
+                                else
+                                    loTail.next = e;
+                                loTail = e;
+                            }
+                            else {
+                                if (hiTail == null)
+                                    hiHead = e;
+                                else
+                                    hiTail.next = e;
+                                hiTail = e;
+                            }
+                        } while ((e = next) != null);
+                        /**
+                         * 如果在新数组中位置和之前一样的节点存在，则将这些节点的头节点放到新数组对应位置中，
+                         * 同样，如果在新数组中位置发生改变的节点存在，则将这些节点的头节点放到新数组的对应位置中。
+                         * 可将，jdk8在扩容时，不会发生链表的翻转
+                         */
+                        if (loTail != null) {
+                            loTail.next = null;
+                            newTab[j] = loHead;
+                        }
+                        if (hiTail != null) {
+                            hiTail.next = null;
+                            newTab[j + oldCap] = hiHead;
+                        }
+                    }
+                }
+            }
+        }
+        //返回新数组
+        return newTab;
+    }
 ```
 
 ## TreeNode
