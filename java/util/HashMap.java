@@ -1315,6 +1315,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     @Override
     public V computeIfAbsent(K key,
                              Function<? super K, ? extends V> mappingFunction) {
+        /**
+         * 这个方法有2个参数，key和一个根据key来产生value的function，
+         * 这个方法首先会根据key算出的哈希值，已经该哈希值对应的哈希数组中的下标
+         * 来找是否存在对应key的节点，如果存在这样的节点，并且节点的value非空，则直接返回，不进行计算，
+         * 如果不存在这样的节点或者，存在这样的节点但是对应的value为空，则进行函数计算，并将计算后的结果，
+         * 插入到HashMap中
+         */
         if (mappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);
@@ -1322,9 +1329,24 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int binCount = 0;
         TreeNode<K,V> t = null;
         Node<K,V> old = null;
+        /**
+         * 如果当前HashMap的大小大于阈值，
+         * 或者哈希数组为空，
+         * 或者哈希数组的长度为0，
+         * 则将哈希数组进行扩容
+         */
         if (size > threshold || (tab = table) == null ||
             (n = tab.length) == 0)
             n = (tab = resize()).length;
+        /**
+         * 根据key对应的哈希值，从哈希数组中取出相应位置上的第一个节点，
+         * 如果该节点非空，则继续判断
+         * 如果该节点是红黑树节点，那么则从对应的红黑树中取出相应的节点（根据哈希值和key）
+         * 否则，如果该节点是普通节点，则不断遍历当前节点所在的链表，
+         * 找出哈希值相同，并且key和当前节点一样（指向同一块儿物理内存），或者是值相同的节点，
+         * 每次查找时都要记录已经经过的节点个数，
+         * 如果查到了该节点，并且该节点非空，则将该节点的旧值返回
+         */
         if ((first = tab[i = (n - 1) & hash]) != null) {
             if (first instanceof TreeNode)
                 old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
@@ -1345,6 +1367,18 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 return oldValue;
             }
         }
+        /**
+         * 对指定的key用指定的函数进行处理，并将处理的返回值赋值给v，
+         * 如果v是空，则返回空，
+         * 如果v非空，并且旧节点也非空，
+         * 则将旧节点的值置为v，并返回v。
+         * 如果v非空，但是旧节点为空，并且在哈希数组上的树形节点t非空，
+         * 则调用树形节点的putTreeVal方法，将经过函数计算后的值插入进去
+         * 如果t也为空，则说明当前key对应的节点不存在，
+         * 因此需要新建一个节点，节点的值置为v，
+         * 然后判断，当前哈希数组该位置的节点数目是否≥8了，
+         * 如果是，则需要将该位置的节点树形化
+         */
         V v = mappingFunction.apply(key);
         if (v == null) {
             return null;
@@ -1360,6 +1394,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (binCount >= TREEIFY_THRESHOLD - 1)
                 treeifyBin(tab, hash);
         }
+        /**
+         * 将HashMap的修改次数++，将HashMap的大小++，最后返回v
+         */
         ++modCount;
         ++size;
         afterNodeInsertion(true);
