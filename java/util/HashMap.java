@@ -1278,9 +1278,17 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     @Override
     public boolean replace(K key, V oldValue, V newValue) {
+        /**
+         * 节点值的替换
+         */
         Node<K,V> e; V v;
         if ((e = getNode(hash(key), key)) != null &&
             ((v = e.value) == oldValue || (v != null && v.equals(oldValue)))) {
+            /**
+             * 如果能找到指定key的节点，并且节点的值和参数中的旧值是同一个（指向同一块儿物理内存），
+             * 或者节点的值和参数中的旧值相等，
+             * 则将节点的值替换为新值，并返回真，否则返回假
+             */
             e.value = newValue;
             afterNodeAccess(e);
             return true;
@@ -1290,6 +1298,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     @Override
     public V replace(K key, V value) {
+        /**
+         * 和上面方法类似，
+         * 只不过这里是只替换，不检查，并且返回旧值
+         */
         Node<K,V> e;
         if ((e = getNode(hash(key), key)) != null) {
             V oldValue = e.value;
