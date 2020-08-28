@@ -1624,11 +1624,16 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         if (action == null)
             throw new NullPointerException();
         if (size > 0 && (tab = table) != null) {
+            //在遍历前记录一下HashMap的修改次数
             int mc = modCount;
             for (int i = 0; i < tab.length; ++i) {
                 for (Node<K,V> e = tab[i]; e != null; e = e.next)
                     action.accept(e.key, e.value);
             }
+            /**
+             * 遍历结束后，将当前的修改次数和遍历前的进行比较，
+             * 如果不一致，说明在遍历过程中，还有其他线程对HashMap进行修改
+             */
             if (modCount != mc)
                 throw new ConcurrentModificationException();
         }
@@ -1663,6 +1668,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     @SuppressWarnings("unchecked")
     @Override
     public Object clone() {
+        /**
+         * HashMap的浅拷贝
+         */
         HashMap<K,V> result;
         try {
             result = (HashMap<K,V>)super.clone();
