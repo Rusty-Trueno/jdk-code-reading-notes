@@ -172,7 +172,106 @@ final Node<K,V>[] resize() {
         return newTab;
     }
 ```
+## 基本方法
+> jdk8中HashMap的put方法
+```
+public V put(K key, V value) {
+        return putVal(hash(key), key, value, false, true);
+    }
 
+    /**
+     * Implements Map.put and related methods.
+     *
+     * @param hash hash for key
+     * @param key the key
+     * @param value the value to put
+     * @param onlyIfAbsent if true, don't change existing value
+     * @param evict if false, the table is in creation mode.
+     * @return previous value, or null if none
+     */
+    final V putVal(int hash, K key, V value, boolean onlyIfAbsent,
+                   boolean evict) {
+        /**
+         * 将一个key-value对放到HashMap中
+         */
+        Node<K,V>[] tab; Node<K,V> p; int n, i;
+        /**
+         * 如果哈希数组为空或者哈希数组的长度为0，
+         * 则需要对哈希数组进行扩容，
+         * 并将扩容后的长度赋值给n
+         */
+        if ((tab = table) == null || (n = tab.length) == 0)
+            n = (tab = resize()).length;
+        /**
+         * 根据当前元素的哈希值，获取当前元素在哈希数组中的索引位置，
+         * 并将该位置对应的节点赋值给p，如果该位置为空则将新的节点放到该位置
+         */
+        if ((p = tab[i = (n - 1) & hash]) == null)
+            tab[i] = newNode(hash, key, value, null);
+        /**
+         * 如果该位置的节点非空，
+         */
+        else {
+            Node<K,V> e; K k;
+            /**
+             * 如果当前哈希数组索引位置的节点（p）的哈希值等于要插入节点的哈希值，
+             * 并且p的key和要插入的key指向同一块儿内存，
+             * 或者要插入节点的key与p的key值相等，则将e指向p
+             */
+            if (p.hash == hash &&
+                ((k = p.key) == key || (key != null && key.equals(k))))
+                e = p;
+            /**
+             * 如果p（哈希数组当前位置上的节点）是红黑树节点，
+             * 则调用红黑树的插入方法，将key-value对插入
+             */
+            else if (p instanceof TreeNode)
+                e = ((TreeNode<K,V>)p).putTreeVal(this, tab, hash, key, value);
+            /**
+             * 否则，如果当前节点是普通的链表节点，
+             * 则从该节点向下遍历，并记录节点累计的个数，
+             * 如果当前节点的后继为空，则说明已经遍历到哈希数组此位置的最后一个节点，
+             * 则将当前节点的下一个节点指向基于要插入的key-value对创建的新节点，
+             * 继续判断，如果当前节点的总数目已经≥8，则说明，此位置的链表应该树形化，
+             * 因此调用树形化方法将节点树形化，然后跳出循环，
+             *
+             * 如果找到和要插入的节点哈希值和key都相同的节点，则退出循环，并将该节点返回
+             */
+            else {
+                for (int binCount = 0; ; ++binCount) {
+                    if ((e = p.next) == null) {
+                        p.next = newNode(hash, key, value, null);
+                        if (binCount >= TREEIFY_THRESHOLD - 1) // -1 for 1st
+                            treeifyBin(tab, hash);
+                        break;
+                    }
+                    if (e.hash == hash &&
+                        ((k = e.key) == key || (key != null && key.equals(k))))
+                        break;
+                    p = e;
+                }
+            }
+            if (e != null) { // existing mapping for key
+                /**
+                 * 如果成功将key对应的节点插入，或者找到了本来就有的key节点，
+                 * 修改节点的值为新值，并返回旧值
+                 */
+                V oldValue = e.value;
+                if (!onlyIfAbsent || oldValue == null)
+                    e.value = value;
+                afterNodeAccess(e);
+                return oldValue;
+            }
+        }
+        ++modCount;
+        //如果插入节点后，HashMap的大小已经大于阈值了，则需要将其扩容
+        if (++size > threshold)
+            resize();
+        afterNodeInsertion(evict);
+        return null;
+    }
+```
+![jdk8中HashMap的put方法](jdk8中HashMap的put方法.png)
 ## TreeNode
 
 
