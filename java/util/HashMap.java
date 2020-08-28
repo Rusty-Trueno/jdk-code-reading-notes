@@ -1405,12 +1405,25 @@ public class HashMap<K,V> extends AbstractMap<K,V>
 
     public V computeIfPresent(K key,
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        /**
+         * 根据key判断对应的节点是否存在与HashMap中，
+         * 如果存在，并且值非空，则对其进行重新计算，
+         * 并将重新计算后的结果赋值给原节点，
+         * 注意，如果计算出的v为空，则直接将对应的节点删除。
+         */
         if (remappingFunction == null)
             throw new NullPointerException();
         Node<K,V> e; V oldValue;
         int hash = hash(key);
         if ((e = getNode(hash, key)) != null &&
             (oldValue = e.value) != null) {
+            /**
+             * 根据key的哈希值和key获取节点，如果节点非空，
+             * 并且节点的值也非空，则根据key和节点对应的旧值进行计算
+             * 如果计算结果非空，则将节点的值重新置为计算出的结果v，并返回v。
+             *
+             * 如果计算出的结果为空，则将对应的节点直接移除
+             */
             V v = remappingFunction.apply(key, oldValue);
             if (v != null) {
                 e.value = v;
