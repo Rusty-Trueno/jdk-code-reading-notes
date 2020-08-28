@@ -936,6 +936,9 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *         previously associated <tt>null</tt> with <tt>key</tt>.)
      */
     public V remove(Object key) {
+        /**
+         * 移除HashMap中的节点
+         */
         Node<K,V> e;
         return (e = removeNode(hash(key), key, null, false, true)) == null ?
             null : e.value;
@@ -953,13 +956,35 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      */
     final Node<K,V> removeNode(int hash, Object key, Object value,
                                boolean matchValue, boolean movable) {
+        /**
+         * 移除HashMap中的节点
+         */
         Node<K,V>[] tab; Node<K,V> p; int n, index;
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (p = tab[index = (n - 1) & hash]) != null) {
+            /**
+             * 将tab指针指向当前哈希数组，
+             * 并判断，是否哈希数组非空，以及哈希数组的长度是否大于0，
+             * 并且，将p指针指向哈希数组中当前节点对应的位置，并判断，该位置的节点是否非空
+             * 如果条件都满足，则进行后续操作
+             */
             Node<K,V> node = null, e; K k; V v;
+            /**
+             * 判断，如果被删除节点的哈希值和p的哈希值相同，
+             * 并且判断，被删除节点的key是不是和p节点的key是一个（指向同一块儿物理内存），
+             * 或者被删除节点的key与p节点的key值相同，
+             * 如果满足，则将node指针指向p节点（要删除的就是p节点）
+             */
             if (p.hash == hash &&
                 ((k = p.key) == key || (key != null && key.equals(k))))
                 node = p;
+            /**
+             * 否则的话，将e指针指向p节点的后继节点，
+             * 并判断其是否为空，如果非空，
+             * 则先判断p节点是否为红黑树节点，
+             * 如果是的话，则从红黑树中获取指定key-value对的树形节点，
+             * 如果不是的话，则不断遍历链表，找到指定key-value对的普通节点
+             */
             else if ((e = p.next) != null) {
                 if (p instanceof TreeNode)
                     node = ((TreeNode<K,V>)p).getTreeNode(hash, key);
@@ -977,6 +1002,20 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
             if (node != null && (!matchValue || (v = node.value) == value ||
                                  (value != null && value.equals(v)))) {
+                /**
+                 * 如果找到了被删除的节点，并且，要求不一定非要value相同，
+                 * 或者要求value也相同，而且value确实也是相同的
+                 */
+                /**
+                 * 如果被删除的节点是树形节点，则调用树形节点的删除方法，将该节点删除，
+                 * 如果节点就是普通节点，
+                 * 继续判断，如果p节点（哈希数组上的第一个节点）就是被删除的节点，
+                 * 则需要将哈希数组该位置的节点设置为p节点的下一个节点，
+                 * 否则，直接将p节点（注意，这种情况下，p节点已经不一定是哈希数组某个位置上的第一个节点了）
+                 * 的后继节点指向被删除节点的后继节点
+                 * 最后，将HashMap的被修改次数++，并将HashMap的大小--，
+                 * 并返回被删除的节点
+                 */
                 if (node instanceof TreeNode)
                     ((TreeNode<K,V>)node).removeTreeNode(this, tab, movable);
                 else if (node == p)
