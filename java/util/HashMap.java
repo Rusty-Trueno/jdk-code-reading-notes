@@ -1439,6 +1439,11 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     @Override
     public V compute(K key,
                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
+        /**
+         * 计算指定key关联的映射值，
+         * 主要就是将BiFunction的结果赋予key关联的映射值，
+         * 注意，如果没找打对应的节点，但是计算出的v非空，则需要新建节点（和computeIfPresent的区别）
+         */
         if (remappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);
@@ -1446,10 +1451,21 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int binCount = 0;
         TreeNode<K,V> t = null;
         Node<K,V> old = null;
+        /**
+         * 如果当前HashMap的大小超过了阈值，
+         * 或者表为空，或者表的长度为0，
+         * 则需要先扩容
+         */
         if (size > threshold || (tab = table) == null ||
             (n = tab.length) == 0)
             n = (tab = resize()).length;
         if ((first = tab[i = (n - 1) & hash]) != null) {
+            /**
+             * 根据传入的key计算出的哈希值，
+             * 从HashMap中取出相应位置上的第一个节点
+             * 判断，如果节点是树形节点，则调用树形节点的方法，取出指定key值对应的节点，
+             * 如果节点是普通节点，则通过遍历链表的方法，取出对应的节点，并记录经过的节点总数，
+             */
             if (first instanceof TreeNode)
                 old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
             else {
@@ -1464,9 +1480,17 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 } while ((e = e.next) != null);
             }
         }
+        /**
+         * 用给定函数计算出新值v
+         */
         V oldValue = (old == null) ? null : old.value;
         V v = remappingFunction.apply(key, oldValue);
         if (old != null) {
+            /**
+             * 如果HashMap中本来就存在key对应的节点，
+             * 则判断，v是否为空，如果为空，则将节点的旧值替换为计算出的新值，
+             * 如果不存再在key对应的节点，则将对应key的节点从HashMap中移除
+             */
             if (v != null) {
                 old.value = v;
                 afterNodeAccess(old);
@@ -1475,6 +1499,14 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 removeNode(hash, key, null, false, true);
         }
         else if (v != null) {
+            /**
+             * 如果HashMap中不存在key对应的节点，并且计算出的v非空，
+             * 如果哈希值对应的在哈希数组中指定位置上的第一个树形节点非空，
+             * 则将根据v和key创建的新的树形节点插入到HashMap中，
+             * 如果t为空，意味着，在哈希数组中对应位置的节点不是红黑树，
+             * 则创建一个普通的节点，并将节点放到哈希数组的第一个位置，
+             * 同时判断，当前此位置的节点数量是否≥8，如果是则需要将该位置的节点树形化
+             */
             if (t != null)
                 t.putTreeVal(this, tab, hash, key, v);
             else {
@@ -1482,6 +1514,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 if (binCount >= TREEIFY_THRESHOLD - 1)
                     treeifyBin(tab, hash);
             }
+            /**
+             * 将哈希数组的修改次数++，
+             * 哈希数组的节点个数++。
+             */
             ++modCount;
             ++size;
             afterNodeInsertion(true);
