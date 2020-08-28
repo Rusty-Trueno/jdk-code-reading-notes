@@ -608,12 +608,31 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * @return the node, or null if none
      */
     final Node<K,V> getNode(int hash, Object key) {
+        /**
+         * 根据key的哈希值以及key本身，找到目标节点
+         */
         Node<K,V>[] tab; Node<K,V> first, e; int n; K k;
         if ((tab = table) != null && (n = tab.length) > 0 &&
             (first = tab[(n - 1) & hash]) != null) {
+            /**
+             * 如果哈希数组非空，并且哈希数组的长度大于0，
+             * 并且根据哈希值得到的哈希数组指定位置的节点（first）非空
+             */
+            /**
+             * 如果first的哈希值和目标哈希值相同，
+             * 并且first的key值和目标key值是同一个（指向同一块物理内存），
+             * 或者first的key值和目标key值相等，则直接返回first节点（查到了）
+             */
             if (first.hash == hash && // always check first node
                 ((k = first.key) == key || (key != null && key.equals(k))))
                 return first;
+            /**
+             * 如果first节点不是目标节点，则需要继续往下查，
+             * 将指针e指向first节点的后继节点，如果e非空，则
+             * 判断，如果first节点是树形节点，则调用树形节点的方法，查找处目标节点
+             * 如果first节点不是树形节点，则不断从e节点向下遍历链表，直到查找到目标节点，或者遍历结束
+             * 找到则返回节点，没找到则返回空。
+             */
             if ((e = first.next) != null) {
                 if (first instanceof TreeNode)
                     return ((TreeNode<K,V>)first).getTreeNode(hash, key);
@@ -1036,6 +1055,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      * The map will be empty after this call returns.
      */
     public void clear() {
+        /**
+         * 将HashMap中的节点全部删除
+         * 把每个哈希数组位置上的节点置空即可
+         */
         Node<K,V>[] tab;
         modCount++;
         if ((tab = table) != null && size > 0) {
@@ -1054,6 +1077,12 @@ public class HashMap<K,V> extends AbstractMap<K,V>
      *         specified value
      */
     public boolean containsValue(Object value) {
+        /**
+         * 判断HashMap中是否存在一个或多个key对应着包含包含某个value，
+         * 遍历哈希数组每个位置，并在每个位置遍历每个位置下的全部节点，
+         * 判断节点的值是不是和指定的值是同一个（指向同一块物理内存），
+         * 或者节点的值和指定的值相等，是则返回真
+         */
         Node<K,V>[] tab; V v;
         if ((tab = table) != null && size > 0) {
             for (int i = 0; i < tab.length; ++i) {
@@ -2359,16 +2388,15 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                                   boolean movable) {
             /**
              * 移除树节点
-             *
              */
             int n;
             if (tab == null || (n = tab.length) == 0)
                 return;
-            //获取最靠前的节点所在的索引值
+            //获取当前节点在哈希数组中的索引下标
             int index = (n - 1) & hash;
-            //取出最靠前的节点
+            //取出在哈希数组指定下标上的第一个节点，并将此节点设置为根节点
             TreeNode<K,V> first = (TreeNode<K,V>)tab[index], root = first, rl;
-            //分别用2个指针指向当前节点的下一个节点，以及当前节点的前一个节点
+            //分别用2个指针指向当前节点的后继节点，以及当前节点的前驱节点
             TreeNode<K,V> succ = (TreeNode<K,V>)next, pred = prev;
             /**
              * 如果当前节点的前驱为空，则说明当前节点是最靠前的节点，
@@ -2394,15 +2422,17 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             if (first == null)
                 return;
             /**
-             * 当节点数量小于7时，转换成链栈的形式存储
+             * 找到当前节点的真正根节点
              */
             if (root.parent != null)
                 root = root.root();
             /**
-             * 以下三个条件任一满足时，当满足红黑树条件时，说明该位置元素的长度少于6
+             * 以下几个条件任一满足时，当满足红黑树条件时，说明该位置元素的长度少于7
              * 因此，需要对该元素位置链表化
              * 1. root == null ：根节点为空，树节点数量为0
-             * 2. root
+             * 2. root.right == null ：根节点的右子节点为空，则树节点数量最多为2个
+             * 3. root.left == null ：根节点的左子节点为空，同样，树节点数量最多为2个
+             * 4. root.left.left == null ：根节点左子节点的左子节点为空，则说明树节点个数最多为6个（再多一个都不满足红黑树条件）
              */
             if (root == null
                 || (movable
@@ -2413,6 +2443,7 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 return;
             }
             /**
+             * 经过上面的判断，说明当前节点还是树形结构
              * 判断树形结构
              */
             TreeNode<K,V> p = this, pl = left, pr = right, replacement;
@@ -2420,7 +2451,6 @@ public class HashMap<K,V> extends AbstractMap<K,V>
                 /**
                  * 如果当前节点的左节点和右节点都是非空的
                  * 从当前节点的右节点一直往左走，直到走到头
-                 *
                  */
                 TreeNode<K,V> s = pr, sl;
                 while ((sl = s.left) != null) // find successor
