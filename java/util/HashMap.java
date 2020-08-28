@@ -1528,6 +1528,10 @@ public class HashMap<K,V> extends AbstractMap<K,V>
     @Override
     public V merge(K key, V value,
                    BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
+        /**
+         * 如果key存在，则执行lambda表达式，表达式入参为oldVal和newVal，
+         * 如果key不存在，则直接put进去newVal
+         */
         if (value == null)
             throw new NullPointerException();
         if (remappingFunction == null)
@@ -1537,10 +1541,23 @@ public class HashMap<K,V> extends AbstractMap<K,V>
         int binCount = 0;
         TreeNode<K,V> t = null;
         Node<K,V> old = null;
+        /**
+         * 如果当前HashMap的大小比阈值要大，
+         * 或者当前表为空，或者表的长度为0，
+         * 则需要将表扩容
+         */
         if (size > threshold || (tab = table) == null ||
             (n = tab.length) == 0)
             n = (tab = resize()).length;
+        /**
+         * 根据节点的哈希值得到其对应的在哈希数组中的第一个节点
+         */
         if ((first = tab[i = (n - 1) & hash]) != null) {
+            /**
+             * 如果第一个节点是树形节点，则调用树形节点获取指定节点的方法获取指定节点，
+             * 如果是普通节点，则遍历该节点所在的链表，从中找出指定的节点，
+             * 并记录当前经过的节点数
+             */
             if (first instanceof TreeNode)
                 old = (t = (TreeNode<K,V>)first).getTreeNode(hash, key);
             else {
@@ -1556,11 +1573,21 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             }
         }
         if (old != null) {
+            /**
+             * 如果key对应的节点存在，
+             * 判断，该节点的值是否为空，
+             * 如果非空，则调用函数获取新值v，
+             * 如果为空，则直接将参数中的value赋值给v
+             */
             V v;
             if (old.value != null)
                 v = remappingFunction.apply(old.value, value);
             else
                 v = value;
+            /**
+             * 如果v非空，则将该节点的值替换为计算出的v，
+             * 如果v为空，则直接删除对应的节点
+             */
             if (v != null) {
                 old.value = v;
                 afterNodeAccess(old);
@@ -1570,6 +1597,13 @@ public class HashMap<K,V> extends AbstractMap<K,V>
             return v;
         }
         if (value != null) {
+            /**
+             * 如果参数value非空，
+             * 判断是否指定节点是属性节点，并且是哈希数组上的第一个节点，
+             * 如果是的话，就调用树形节点添加值的方法，添加新值value，
+             * 如果不是，则直接根据新值和key创建一个新的节点，并将其放在哈希数组指定索引的第一个位置上，
+             * 并判断，如果当前节点的数目≥8，则将节点转化为树形节点
+             */
             if (t != null)
                 t.putTreeVal(this, tab, hash, key, value);
             else {
