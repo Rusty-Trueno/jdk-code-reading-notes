@@ -51,6 +51,13 @@ void transfer(Entry[] newTable, boolean rehash) {
     }
 ```
 ![jdk7中的扩容](jdk7中的扩容机制.png)
+> jdk7扩容，在多线程情况下会导致死循环的问题
+![1.7HashMap多线程环境成环路的示意图](1.7HashMap多线程环境成环路的示意图.png)
+注：1.8中HashMap的扩容在链表的情况下，不是头插法，因此扩容后，链表节点的顺序不会改变，
+因此在多线程环境下也不会成环。但是这并不意味着可以在多线程环境下使用1.8的HashMap，因为
+其get/put方法都没有线程同步机制，无法保证在多线程环境下，上一秒put的值，下一秒get的时候
+还是原来的值。在多线程情况下，可以使用ConcurrentHashMap。
+
 >jdk8中的扩容：
 ```
 final Node<K,V>[] resize() {
