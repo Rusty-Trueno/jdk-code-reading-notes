@@ -67,3 +67,24 @@ private final Node<K,V>[] initTable() {
     }
 ```
 
+## 基本方法
+
+> tabAt函数
+```
+static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+        /**
+         * 获取哈希表指定位置的节点，
+         * 通过getObjectVolatile方法可以直接获取指定内存的数据，
+         * 保证了每次拿到的数据都是最新的
+         */
+        return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
+    }
+```
+1. table既然是用volatile修饰的，那么为什么还要用native方法去查看内存？
+* 答：table确实是volatile修饰的，但是这只能表示数组的引用是内存可见的，
+但是数组每个位置指向的内容并不保证是内存可见的，所以，如果直接去用下标
+访问数组中的某个元素不能保证访问的是最新的值。因此需要使用native方法，
+直接取内存中取，这样一定是最新的数据。
+
+> 
+

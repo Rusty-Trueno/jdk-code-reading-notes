@@ -756,6 +756,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
 
     @SuppressWarnings("unchecked")
     static final <K,V> Node<K,V> tabAt(Node<K,V>[] tab, int i) {
+        /**
+         * 获取哈希表指定位置的节点，
+         * 通过getObjectVolatile方法可以直接获取指定内存的数据，
+         * 保证了每次拿到的数据都是最新的
+         */
         return (Node<K,V>)U.getObjectVolatile(tab, ((long)i << ASHIFT) + ABASE);
     }
 
@@ -765,6 +770,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     }
 
     static final <K,V> void setTabAt(Node<K,V>[] tab, int i, Node<K,V> v) {
+        /**
+         * 该方法，在设置值的时候，强制（JMM会保证获得锁到释放锁之间所有对象
+         * 的状态更新都会在锁被释放之后）更新到主存，从而保证这些变更对其他
+         * 线程是可见的。
+         */
         U.putObjectVolatile(tab, ((long)i << ASHIFT) + ABASE, v);
     }
 
@@ -1034,7 +1044,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         for (Node<K,V>[] tab = table;;) {
             /**
              * 遍历哈希表，
-             * 首先判断，如果表为空，或者表的长度为0，则初始化表
+             * 首先判断，如果表为空，或者表的长度为0，则初始化表，
+             * 如果表非空，判断当前key对应的位置上是否存在节点（这里通过native方法直接访问内存，这样可以获得最新的数据），
+             * 如果该位置的节点为空，则在该位置新建一个节点（这里同样通过native方法直接访问内存，使得更新的数据对其他线程也是可见的），
+             * 如果当前哈希表上该位置非空，
              */
             Node<K,V> f; int n, i, fh;
             if (tab == null || (n = tab.length) == 0)
