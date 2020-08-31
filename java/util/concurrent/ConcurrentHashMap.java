@@ -682,6 +682,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * never be used in index calculations because of table bounds.
      */
     static final int spread(int h) {
+        /**
+         * ConcurrentHashMap的哈希函数,
+         * 将其与自己的高16位进行异或运算，与HASH_BITS进行与运算，消除负hash
+         */
         return (h ^ (h >>> 16)) & HASH_BITS;
     }
 
@@ -792,6 +796,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * creation, or 0 for default. After initialization, holds the
      * next element count value upon which to resize the table.
      */
+    /**
+     * 默认为0，用来控制table的初始化和扩容操作，
+     * -1代表table正在初始化，
+     * -N表示有N-1个线程正在进行扩容操作
+     * 其余情况：
+     * 1.如果table未初始化，则表示table要初始化的大小。
+     * 2.如果table初始化完成，表示table的容量，默认是table大小的0.75倍
+     */
     private transient volatile int sizeCtl;
 
     /**
@@ -834,6 +846,14 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * elements is negative
      */
     public ConcurrentHashMap(int initialCapacity) {
+        /**
+         * 构造函数，
+         * 当初始容量小于0时，抛异常，
+         * 否则，判断初始容量如果≥（最大容量无符号右移1位）的话，
+         * 则将当前容量设置为最大容量，否则通过tableSizeFor获取容量
+         * 注意，ConcurrentHashMap在构造函数中只会初始化sizeCtl值，
+         * 并不会直接初始化table，而是延缓到第一次put操作。
+         */
         if (initialCapacity < 0)
             throw new IllegalArgumentException();
         int cap = ((initialCapacity >= (MAXIMUM_CAPACITY >>> 1)) ?
@@ -1012,6 +1032,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         int hash = spread(key.hashCode());
         int binCount = 0;
         for (Node<K,V>[] tab = table;;) {
+            /**
+             * 遍历哈希表，
+             * 首先判断，如果表为空，或者表的长度为0，则初始化表
+             */
             Node<K,V> f; int n, i, fh;
             if (tab == null || (n = tab.length) == 0)
                 tab = initTable();
@@ -2223,15 +2247,39 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
     private final Node<K,V>[] initTable() {
         Node<K,V>[] tab; int sc;
         while ((tab = table) == null || tab.length == 0) {
+            /**
+             * 如果表为空，或者表的长度为0，则一直循环，
+             * 如果sizeCtl＜0，则说明当前哈希表正在初始化，
+             * 则需要当前线程让出CPU时间，
+             * 否则，进行CAS判断（传入当前对象，和当前对象在内存中的偏移量（SIZECTL）
+             * 并将偏移量处的值和期望值，此时为sc去比较，如果相等，
+             * 就把目标值-1赋值给offset位置的值，方法返回true），即，如果sizeCtl的大小没有被其他线程改变，
+             * 则当前线程可以获得对sizeCtl的改变权力，则将sizeCtl的值赋值为-1，表示当前有线程在修改此表
+             */
             if ((sc = sizeCtl) < 0)
                 Thread.yield(); // lost initialization race; just spin
             else if (U.compareAndSwapInt(this, SIZECTL, sc, -1)) {
+                /**
+                 * 当前线程初始化哈希表，
+                 * 先判断，当前哈希表是否为空，或者当前哈希表的长度是否为0，
+                 * 如果是的话，则获取原sizeCtl的大小，
+                 * 如果原来就>0，则说明在创建哈希表的时候，向构造函数中传递了初始大小，
+                 * 如果原来<0，则说明able正在初始化，
+                 * 或者-N表示有N-1个线程正在进行扩容操作，
+                 * 这2中情况则将哈希表的大小设置为默认的大小，
+                 * 新建Node数组，数组的大小为当前容量的大小，
+                 * 将当前的table替换为新建好的table，并修改sc为（n-(n>>>2)），即表容量的0.75倍
+                 *
+                 * 最后，将sizeCtl设置为(n-(n>>>2))
+                 */
                 try {
                     if ((tab = table) == null || tab.length == 0) {
+                        //双重验证
                         int n = (sc > 0) ? sc : DEFAULT_CAPACITY;
                         @SuppressWarnings("unchecked")
                         Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n];
                         table = tab = nt;
+                        //将sc的值改变为n-0.25n，也就是0.75n
                         sc = n - (n >>> 2);
                     }
                 } finally {
