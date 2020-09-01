@@ -66,6 +66,17 @@ private final Node<K,V>[] initTable() {
         return tab;
     }
 ```
+## 基本数据结构
+
+> ForwardingNode
+1. ForwardingNode节点是一种临时节点，在扩容进行中才会出现，hash值固定为-1，
+并且它不存储实际的数据，如果旧数组的一个hash桶中全部的节点都迁移到新数组中，
+旧数组就在这个hash桶中放置一个ForwardingNode。读操作或者迭代读时碰到ForwardingNode
+时，将操作转发到扩容后的新的table数组上去执行，写操作碰见它时，则尝试帮助扩容。
+
+```
+```
+
 
 ## 基本方法
 

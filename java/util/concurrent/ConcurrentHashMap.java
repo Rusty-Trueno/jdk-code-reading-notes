@@ -1047,7 +1047,6 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
              * 首先判断，如果表为空，或者表的长度为0，则初始化表，
              * 如果表非空，判断当前key对应的位置上是否存在节点（这里通过native方法直接访问内存，这样可以获得最新的数据），
              * 如果该位置的节点为空，则在该位置新建一个节点（这里同样通过native方法直接访问内存，使得更新的数据对其他线程也是可见的），
-             * 如果当前哈希表上该位置非空，
              */
             Node<K,V> f; int n, i, fh;
             if (tab == null || (n = tab.length) == 0)
@@ -1057,6 +1056,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                              new Node<K,V>(hash, key, value, null)))
                     break;                   // no lock when adding to empty bin
             }
+            /**
+             * 如果发现了哈希冲突，并且当前槽位的值是-1（MOVED），
+             * 则说明哈希表正在扩容，那么当前线程就会帮助哈希表扩容，
+             * 以加快速度。
+             */
             else if ((fh = f.hash) == MOVED)
                 tab = helpTransfer(tab, f);
             else {
@@ -2198,6 +2202,9 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * A node inserted at head of bins during transfer operations.
      */
     static final class ForwardingNode<K,V> extends Node<K,V> {
+        /**
+         *
+         */
         final Node<K,V>[] nextTable;
         ForwardingNode(Node<K,V>[] tab) {
             super(MOVED, null, null, null);
@@ -2207,15 +2214,37 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         Node<K,V> find(int h, Object k) {
             // loop to avoid arbitrarily deep recursion on forwarding nodes
             outer: for (Node<K,V>[] tab = nextTable;;) {
+                /**
+                 * 遍历新的哈希表
+                 */
                 Node<K,V> e; int n;
+                /**
+                 * 如果要查找的对象为空，或者哈希表为空，
+                 * 或者哈希表的长度为0，或者哈希表指定位置的节点为空，
+                 * 则直接返回空（没查到）
+                 */
                 if (k == null || tab == null || (n = tab.length) == 0 ||
                     (e = tabAt(tab, (n - 1) & h)) == null)
                     return null;
                 for (;;) {
                     int eh; K ek;
+                    /**
+                     * e指向的是哈希表上当前key对应的第一个节点，
+                     * 如果该节点的哈希值等于目标哈希值，并且
+                     * 该节点的key和目标节点的key指向同一块物理内存，
+                     * 或者该节点的key和目标节点的key值相等，则说明
+                     * 找到了目标节点，则将其返回
+                     */
                     if ((eh = e.hash) == h &&
                         ((ek = e.key) == k || (ek != null && k.equals(ek))))
                         return e;
+                    /**
+                     * 如果哈希表上当前key对应的第一个节点的哈希值＜0，
+                     * 则判断当前节点是不是ForwardingNode，如果是的话，
+                     * 则将tab指向当前节点指向的新表，并转到外层循环，
+                     * 如果不是的话，则说明碰到了特殊节点，
+                     * 调用该节点的find方法，继续查找。
+                     */
                     if (eh < 0) {
                         if (e instanceof ForwardingNode) {
                             tab = ((ForwardingNode<K,V>)e).nextTable;
@@ -2224,6 +2253,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                         else
                             return e.find(h, k);
                     }
+                    /**
+                     * 将e节点指向其后继节点，继续向下遍历，
+                     * 如果后继节点为空，则说明已经遍历结束了，
+                     * 没有找到该节点，则直接返回空。
+                     */
                     if ((e = e.next) == null)
                         return null;
                 }
@@ -2356,15 +2390,40 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * Helps transfer if a resize is in progress.
      */
     final Node<K,V>[] helpTransfer(Node<K,V>[] tab, Node<K,V> f) {
+        /**
+         * tab是哈希表，f是要插入的新节点
+         */
         Node<K,V>[] nextTab; int sc;
         if (tab != null && (f instanceof ForwardingNode) &&
             (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
+            /**
+             * 如果哈希表非空，并且f是ForwardingNode，并且f的下一个表非空，
+             * 则尝试帮助扩容
+             */
+            //根据表的长度获得一个标识符号
             int rs = resizeStamp(tab.length);
+            /**
+             * 如果nextTable没有被并发修改，且tab也没有被并发修改，
+             * 且sizeCtl < 0（说明还在扩容）
+             */
             while (nextTab == nextTable && table == tab &&
                    (sc = sizeCtl) < 0) {
+                /**
+                 * 如果sizeCtl无符号右移 16 不等于rs （sc的前16位如果不等于标识符，则标识符变化了）
+                 * 或者sizeCtl == rs+1 （扩容结束了，不再有线程进行扩容）
+                 * （默认第一个线程设置sc==rs左移16位+2，当第一个线程结束扩容了，
+                 * 就会将sc-1，也就是rs+1）
+                 * 或者sizeCtl == rs+65535 （如果达到最大帮助线程的数量，即65535）
+                 * 或者转移下标正在调整（扩容结束），则结束循环，返回table。
+                 */
                 if ((sc >>> RESIZE_STAMP_SHIFT) != rs || sc == rs + 1 ||
                     sc == rs + MAX_RESIZERS || transferIndex <= 0)
                     break;
+                /**
+                 * 如果以上都不是，则将sizeCtl+1（表示增加了一个线程帮助其扩容），
+                 * 利用cas，如果sc位置的值和当前sizeCtl一直，则说明当前线程获得了
+                 * 对哈希表进行扩容的权力，因此可以进行扩容。
+                 */
                 if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
                     transfer(tab, nextTab);
                     break;
@@ -2426,7 +2485,15 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
      * above for explanation.
      */
     private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
+        /**
+         * 哈希表的扩容
+         */
         int n = tab.length, stride;
+        /**
+         * 如果当前是多核cpu，则将stride赋值为（哈希表的长度/8）/cpu的核心数，
+         * 否则将stride赋值为当前哈希表的长度，并判断stride的大小石佛语小于16，
+         * 如果小于16，则就使用16，这里的目的是让每个CPU处理的桶一样多
+         */
         if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
             stride = MIN_TRANSFER_STRIDE; // subdivide range
         if (nextTab == null) {            // initiating
