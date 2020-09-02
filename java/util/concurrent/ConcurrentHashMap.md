@@ -68,6 +68,11 @@ private final Node<K,V>[] initTable() {
 ```
 
 > ConcurrentHashMap的扩容
+1. 整体思路：
+* 计算每个线程可以处理的桶区间，默认为16。
+* 初始化临时变量nextTable，扩容2倍。
+* 死循环，计算下标，完成总体判断。
+* 如果桶内有数据，则同步地进行节点的转移，通常链表会拆成高位节点和低位节点2中类型。
 ```
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
         /**
@@ -155,7 +160,7 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
                      * 通过CAS将transferIndex与nextIndex去比较，
                      * 如果二者相等，则当前线程获得对transferIndex修改的权力，
                      * 将其修改为nextBound，如果nextIndex比“步长”stride要大，
-                     * 则将nextBound设置为nextIndex-stride，否则将nextBound设置为0（可将，是从后往前进行的转移）
+                     * 则将nextBound设置为nextIndex-stride，否则将nextBound设置为0（可见，是从后往前进行的转移）
                      */
                     //更新这次迁移的边界（当前线程可处理的最小下标）
                     bound = nextBound;
@@ -216,6 +221,8 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
                 advance = true; // already processed
             else {
                 /**
+                 * 如果当前位置已经存在着节点，
+                 * 则需要进行转移操作。
                  * 对哈希数组当前位置节点加锁，
                  * 开始处理数组该位置处的迁移工作，
                  * 加锁是为了防止其他线程putVal的时候向当前位置的链表插入数据
