@@ -2582,7 +2582,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
             }
             if (i < 0 || i >= n || i + n >= nextn) {
                 /**
-                 *
+                 * 判断扩容是否结束
                  */
                 int sc;
                 if (finishing) {
@@ -2597,6 +2597,10 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     sizeCtl = (n << 1) - (n >>> 1);
                     return;
                 }
+                /**
+                 * 如果扩容尚未结束，但是已经无法领取区间了，
+                 * 则当前线程需要尝试退出方法
+                 */
                 if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
                     /**
                      * 在helpTransfer中，可知，每当有线程参与迁移时，都会将sizeCtl+1，
@@ -2610,8 +2614,12 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 }
             }
             /**
+             * >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>下面的逻辑是还没有完成转移任务的情况
+             */
+            /**
              * 如果i处是空的，
              * 则放入刚刚初始化的ForwardingNode节点占位，
+             * 说明该位置上的节点已经被迁移过了，
              * 如果放置成功了，可以继续前进，失败了则不能
              */
             else if ((f = tabAt(tab, i)) == null)
@@ -2623,55 +2631,109 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                 advance = true; // already processed
             else {
                 /**
-                 * 对哈希数组当前位置节点加锁，开始处理数组该位置处的迁移工作
+                 * 对哈希数组当前位置节点加锁，
+                 * 开始处理数组该位置处的迁移工作，
+                 * 加锁是为了防止其他线程putVal的时候向当前位置的链表插入数据
                  */
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
                         /**
                          * 如果当前i下标处的节点和f相同，
-                         * 
                          */
                         Node<K,V> ln, hn;
+                        //头结点的哈希值＞0，说明是链表的Node节点
                         if (fh >= 0) {
+                            /**
+                             * 和HashMap类似，重新哈希后的位置，要么是最高位为0，要么是最高位为1
+                             */
                             int runBit = fh & n;
                             Node<K,V> lastRun = f;
                             for (Node<K,V> p = f.next; p != null; p = p.next) {
+                                /**
+                                 * 从链表的头结点开始遍历，
+                                 * 依次根据节点的哈希值计算出，
+                                 * 节点在新的哈希数组中是高位还是低位，
+                                 */
                                 int b = p.hash & n;
                                 if (b != runBit) {
+                                    /**
+                                     * 如果当前节点和runBit对应的节点不在同一个位置（一个是高位，一个是低位），
+                                     * 则将runBit重新赋值为当前节点的位置b，并将lastRun指向当前节点p
+                                     */
                                     runBit = b;
                                     lastRun = p;
                                 }
                             }
                             if (runBit == 0) {
+                                /**
+                                 * 如果原链表的最后一个节点是低位节点，
+                                 * 则将ln指向该节点，并将hn指向空
+                                 */
                                 ln = lastRun;
                                 hn = null;
                             }
                             else {
+                                /**
+                                 * 如果原链表的最后一个节点是高位节点，
+                                 * 则将hn指向该节点，并将ln指向空
+                                 */
                                 hn = lastRun;
                                 ln = null;
                             }
                             for (Node<K,V> p = f; p != lastRun; p = p.next) {
+                                /**
+                                 * 从原哈希表当前位置的第一个节点开始遍历，
+                                 * 一直遍历到lastRun节点，因为lastRun节点后面的节点，
+                                 * 要么都是高位节点，要么都是低位节点
+                                 * （因为上面对lastRun节点的更新，只有和上一个节点不属于同一类型的才发生，
+                                 * 所以，lastRun节点后面的节点都是和lastRun节点同一类型的，
+                                 * 因此，也就没必要继续调整链表结构了）
+                                 */
                                 int ph = p.hash; K pk = p.key; V pv = p.val;
+                                /**
+                                 * 如果当前节点是低位节点，
+                                 * 则新建一个节点，采用头插法，将该节点的后继节点指向ln，
+                                 * 同样，如果该节点是高位节点，也采用头插法，
+                                 * 将该节点指向hn。
+                                 */
                                 if ((ph & n) == 0)
                                     ln = new Node<K,V>(ph, pk, pv, ln);
                                 else
                                     hn = new Node<K,V>(ph, pk, pv, hn);
                             }
+                            /**
+                             * 分别将高位的头结点，低位的头结点，
+                             * 插入到新的哈希表中。
+                             * 并在旧哈希表的i位置插入一个fwd节点，用于占位，
+                             * 表明该节点已经被迁移过了，其他线程看到，则不会再迁移了
+                             * 设置advance为true，可以继续前进
+                             */
                             setTabAt(nextTab, i, ln);
                             setTabAt(nextTab, i + n, hn);
                             setTabAt(tab, i, fwd);
                             advance = true;
                         }
                         else if (f instanceof TreeBin) {
+                            /**
+                             * 如果f是红黑树节点，
+                             */
                             TreeBin<K,V> t = (TreeBin<K,V>)f;
                             TreeNode<K,V> lo = null, loTail = null;
                             TreeNode<K,V> hi = null, hiTail = null;
                             int lc = 0, hc = 0;
                             for (Node<K,V> e = t.first; e != null; e = e.next) {
+                                /**
+                                 * 遍历链表
+                                 */
                                 int h = e.hash;
                                 TreeNode<K,V> p = new TreeNode<K,V>
                                     (h, e.key, e.val, null, null);
                                 if ((h & n) == 0) {
+                                    /**
+                                     * 如果当前节点是低位节点，
+                                     * 则将当前节点以尾插法插入到lo链表上，
+                                     * 并记录低位节点的个数
+                                     */
                                     if ((p.prev = loTail) == null)
                                         lo = p;
                                     else
@@ -2680,6 +2742,11 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                     ++lc;
                                 }
                                 else {
+                                    /**
+                                     * 同样， 如果当前节点是高位节点，
+                                     * 则将当前节点以尾插法插入到hi链表上，
+                                     * 并记录高位节点的个数
+                                     */
                                     if ((p.prev = hiTail) == null)
                                         hi = p;
                                     else
@@ -2688,13 +2755,25 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                                     ++hc;
                                 }
                             }
+                            /**
+                             * 如果低位节点的个数≤6，则将低位节点链表转换为普通节点的链表，
+                             * 否则的话，如果高位节点个数非零（说明原链表被分割了），
+                             * 则创建一个新的树，如果高位节点个数为零（说明原链表保持不变），
+                             * 则直接用原来的树t。
+                             *
+                             * 高位节点的判断完全类似
+                             */
                             ln = (lc <= UNTREEIFY_THRESHOLD) ? untreeify(lo) :
                                 (hc != 0) ? new TreeBin<K,V>(lo) : t;
                             hn = (hc <= UNTREEIFY_THRESHOLD) ? untreeify(hi) :
                                 (lc != 0) ? new TreeBin<K,V>(hi) : t;
+                            //将低位节点链表放进新的表
                             setTabAt(nextTab, i, ln);
+                            //将高位节点链表放进新的表
                             setTabAt(nextTab, i + n, hn);
+                            //将旧的哈希表的相应位置设置成占位符（说明当前位置的节点已经被转移过了）
                             setTabAt(tab, i, fwd);
+                            //继续向后推进
                             advance = true;
                         }
                     }
