@@ -73,6 +73,9 @@ private final Node<K,V>[] initTable() {
 * 初始化临时变量nextTable，扩容2倍。
 * 死循环，计算下标，完成总体判断。
 * 如果桶内有数据，则同步地进行节点的转移，通常链表会拆成高位节点和低位节点2中类型。
+
+2. 多线程并发扩容的原理：
+
 ```
 private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
         /**
@@ -381,7 +384,7 @@ private final void transfer(Node<K,V>[] tab, Node<K,V>[] nextTab) {
 并且它不存储实际的数据，如果旧数组的一个hash桶中全部的节点都迁移到新数组中，
 旧数组就在这个hash桶中放置一个ForwardingNode。读操作或者迭代读时碰到ForwardingNode
 时，将操作转发到扩容后的新的table数组上去执行，写操作碰见它时，则尝试帮助扩容。
-
+在扩容时，如果旧表的某个槽位是fwd节点，则说明，当前槽位上的节点均已完成转移。
 ```
 ```
 

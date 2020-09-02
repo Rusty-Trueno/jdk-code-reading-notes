@@ -2397,7 +2397,7 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         if (tab != null && (f instanceof ForwardingNode) &&
             (nextTab = ((ForwardingNode<K,V>)f).nextTable) != null) {
             /**
-             * 如果哈希表非空，并且f是ForwardingNode，并且f的下一个表非空，
+             * 如果哈希表非空，并且f是ForwardingNode，并且f的的临时变量nextTable非空
              * 则尝试帮助扩容
              */
             //根据表的长度获得一个标识符号
@@ -2420,8 +2420,8 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                     sc == rs + MAX_RESIZERS || transferIndex <= 0)
                     break;
                 /**
-                 * 如果以上都不是，则将sizeCtl+1（表示增加了一个线程帮助其扩容），
-                 * 利用cas，如果sc位置的值和当前sizeCtl一直，则说明当前线程获得了
+                 * 如果以上都不是，则尝试将sizeCtl+1（表示增加了一个线程帮助其扩容），
+                 * 利用cas，如果sc位置的值和当前sizeCtl相等，则说明当前线程获得了
                  * 对哈希表进行扩容的权力，因此可以进行扩容。
                  */
                 if (U.compareAndSwapInt(this, SIZECTL, sc, sc + 1)) {
