@@ -2491,33 +2491,73 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
         int n = tab.length, stride;
         /**
          * 如果当前是多核cpu，则将stride赋值为（哈希表的长度/8）/cpu的核心数，
-         * 否则将stride赋值为当前哈希表的长度，并判断stride的大小石佛语小于16，
-         * 如果小于16，则就使用16，这里的目的是让每个CPU处理的桶一样多
+         * 否则将stride赋值为当前哈希表的长度，并判断stride的大小是否小于16，
+         * 如果小于16，则就使用16，这里的目的是让每个CPU处理的桶一样多，
+         * stride可以理解为“步长”，有n个位置是需要进行迁移的，
+         * 将这n个任务分为多个任务包，每个任务包有stride个任务
          */
         if ((stride = (NCPU > 1) ? (n >>> 3) / NCPU : n) < MIN_TRANSFER_STRIDE)
             stride = MIN_TRANSFER_STRIDE; // subdivide range
         if (nextTab == null) {            // initiating
+            /**
+             * 初始化nextTab，
+             * 创建原哈希表长度为原来长度2倍的哈希数组，
+             * 并将nextTab指向这个新建的哈希数组
+             */
             try {
                 @SuppressWarnings("unchecked")
                 Node<K,V>[] nt = (Node<K,V>[])new Node<?,?>[n << 1];
                 nextTab = nt;
             } catch (Throwable ex) {      // try to cope with OOME
+                /**
+                 * 如果扩容失败，sizeCtl使用int的最大值
+                 */
                 sizeCtl = Integer.MAX_VALUE;
                 return;
             }
+            /**
+             * 更新成员变量
+             * transferIndex指向的是原数组最后的位置
+             */
             nextTable = nextTab;
             transferIndex = n;
         }
+        /**
+         * 新的哈希表的长度
+         */
         int nextn = nextTab.length;
+        /**
+         * 创建一个fwd节点，即正在被迁移的节点，
+         * 这个构造方法会生成一个Node，这个Node的哈希值为MOVED，
+         * 后面，当原数组中i位置处的节点完成迁移工作后，
+         * 就会将位置i处设置为这个fwd节点，用来告诉其他线程该位置处理过了，
+         * 因此，它相当于是一个标志。
+         */
         ForwardingNode<K,V> fwd = new ForwardingNode<K,V>(nextTab);
+        /**
+         * advance指的是做完了一个位置的迁移工作，可以准备做下一个位置的了
+         */
         boolean advance = true;
         boolean finishing = false; // to ensure sweep before committing nextTab
         for (int i = 0, bound = 0;;) {
             Node<K,V> f; int fh;
             while (advance) {
+                /**
+                 * 如果可以“前进”
+                 */
                 int nextIndex, nextBound;
+                /**
+                 * 对i减一，判断是否≥bound（正常情况下，如果大于bound不成立，
+                 * 说明该线程上次领取的任务已经完成了，那么，需要在下面继续领取任务）
+                 * 如果对i减一≥bound（还需要继续做任务），或者完成了，修改推进状态
+                 * 为false，不能推进了。任务成功后修改其推进状态为true。
+                 */
                 if (--i >= bound || finishing)
                     advance = false;
+                /**
+                 * 将transferIndex赋值给nextIndex，
+                 * 一旦transferIndex≤0，则说明原数组的所有位置都有相应的线程去处理了
+                 */
                 else if ((nextIndex = transferIndex) <= 0) {
                     i = -1;
                     advance = false;
@@ -2526,33 +2566,71 @@ public class ConcurrentHashMap<K,V> extends AbstractMap<K,V>
                          (this, TRANSFERINDEX, nextIndex,
                           nextBound = (nextIndex > stride ?
                                        nextIndex - stride : 0))) {
+                    /**
+                     * 通过CAS将transferIndex与nextIndex去比较，
+                     * 如果二者相等，则当前线程获得对transferIndex修改的权力，
+                     * 将其修改为nextBound，如果nextIndex比“步长”stride要大，
+                     * 则将nextBound设置为nextIndex-stride，否则将nextBound设置为0（可将，是从后往前进行的转移）
+                     */
+                    //更新这次迁移的边界（当前线程可处理的最小下标）
                     bound = nextBound;
+                    //将i设置为当前位置-1（初次对i赋值，这个就是当前线程可以处理的当前区间的最大下标）
                     i = nextIndex - 1;
+                    //停止前进，退出while循环
                     advance = false;
                 }
             }
             if (i < 0 || i >= n || i + n >= nextn) {
+                /**
+                 *
+                 */
                 int sc;
                 if (finishing) {
+                    /**
+                     * 如果完成了扩容，
+                     * 将nextTable置空，
+                     * 将table更新为扩容之后的哈希表
+                     * 更新阈值为扩容后大小的0.75倍
+                     */
                     nextTable = null;
                     table = nextTab;
                     sizeCtl = (n << 1) - (n >>> 1);
                     return;
                 }
                 if (U.compareAndSwapInt(this, SIZECTL, sc = sizeCtl, sc - 1)) {
+                    /**
+                     * 在helpTransfer中，可知，每当有线程参与迁移时，都会将sizeCtl+1，
+                     * 现在，当前线程已经完成了迁移，因此，需要尝试将sizeCtl-1，
+                     * 这里采用CAS的方式，避免多个线程同时对sizeCtl修改导致的冲突
+                     */
                     if ((sc - 2) != resizeStamp(n) << RESIZE_STAMP_SHIFT)
                         return;
                     finishing = advance = true;
                     i = n; // recheck before commit
                 }
             }
+            /**
+             * 如果i处是空的，
+             * 则放入刚刚初始化的ForwardingNode节点占位，
+             * 如果放置成功了，可以继续前进，失败了则不能
+             */
             else if ((f = tabAt(tab, i)) == null)
                 advance = casTabAt(tab, i, null, fwd);
+            /**
+             * 如果当前位置是一个ForwardingNode，代表该位置已经迁移过了
+             */
             else if ((fh = f.hash) == MOVED)
                 advance = true; // already processed
             else {
+                /**
+                 * 对哈希数组当前位置节点加锁，开始处理数组该位置处的迁移工作
+                 */
                 synchronized (f) {
                     if (tabAt(tab, i) == f) {
+                        /**
+                         * 如果当前i下标处的节点和f相同，
+                         * 
+                         */
                         Node<K,V> ln, hn;
                         if (fh >= 0) {
                             int runBit = fh & n;
