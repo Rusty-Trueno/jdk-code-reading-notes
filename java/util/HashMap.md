@@ -49,6 +49,7 @@ void transfer(Entry[] newTable, boolean rehash) {
             }
         }
     }
+    
 ```
 ![jdk7中的扩容](jdk7中的扩容机制.png)
 > jdk7扩容，在多线程情况下会导致死循环的问题
